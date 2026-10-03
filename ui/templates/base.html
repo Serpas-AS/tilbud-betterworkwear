@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="nb"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block tittel %}Tilbud{% endblock %} — Better WorkWear</title>
+<style>
+  :root{--mork:#111;--grå:#6b7280;--kant:#e5e7eb;--bg:#f8f9fa;--gul:#f5c518;--rød:#b42318}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,sans-serif;color:var(--mork);background:var(--bg)}
+  header{background:var(--mork);color:#fff;padding:.9rem 1.25rem;display:flex;
+         align-items:center;gap:1.25rem;flex-wrap:wrap}
+  header a{color:#fff;text-decoration:none;opacity:.85}
+  header a:hover{opacity:1}
+  header .merke{font-weight:700;letter-spacing:.02em}
+  header .hoyre{margin-left:auto;display:flex;gap:1rem;align-items:center;font-size:.9rem}
+  main{max-width:1000px;margin:1.5rem auto;padding:0 1.25rem}
+  h1{font-size:1.5rem;margin:0 0 1.25rem}
+  .kort{background:#fff;border:1px solid var(--kant);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:.6rem .5rem;border-bottom:1px solid var(--kant);vertical-align:top}
+  th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--grå)}
+  td.tall,th.tall{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .knapp{display:inline-block;background:var(--mork);color:#fff;border:0;border-radius:999px;
+         padding:.6rem 1.15rem;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+  .knapp:hover{background:#000}
+  .knapp.sekundaer{background:#fff;color:var(--mork);border:1.5px solid var(--mork)}
+  input,select,textarea{font:inherit;padding:.55rem .7rem;border:1px solid #cbd0d6;
+         border-radius:8px;width:100%;background:#fff}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--mork);outline-offset:1px}
+  label{display:block;font-size:.8rem;font-weight:600;color:var(--grå);margin-bottom:.25rem}
+  .rad{display:grid;gap:.75rem;margin-bottom:.75rem}
+  .rad-2{grid-template-columns:1fr 1fr}
+  .merkelapp{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .5rem;
+             border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+  .m-generert{background:#eef2ff;color:#3730a3}
+  .m-sendt{background:#ecfdf5;color:#065f46}
+  .feil{background:#fef2f2;border:1px solid #fecaca;color:var(--rød);
+        padding:.7rem .9rem;border-radius:8px;margin-bottom:1rem}
+  .info{background:#fffbeb;border:1px solid #fde68a;padding:.7rem .9rem;border-radius:8px}
+  .tom{color:var(--grå);text-align:center;padding:2.5rem 1rem}
+  @media(max-width:640px){.rad-2{grid-template-columns:1fr}}
+</style>
+</head><body>
+{% if bruker %}
+<header>
+  <a href="/" class="merke">BETTER WORKWEAR — Tilbud</a>
+  <a href="/">Oversikt</a>
+  <a href="/nytt">Nytt tilbud</a>
+  {% if bruker.rolle == "admin" %}<a href="/brukere">Brukere</a>{% endif %}
+  <span class="hoyre">
+    <span>{{ bruker.navn or bruker.email }} ({{ bruker.rolle }})</span>
+    <a href="/logout">Logg ut</a>
+  </span>
+</header>
+{% endif %}
+<main>{% block innhold %}{% endblock %}</main>
+</body></html>

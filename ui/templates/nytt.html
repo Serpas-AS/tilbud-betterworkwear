@@ -1,0 +1,344 @@
+{% extends "base.html" %}{% block tittel %}Nytt tilbud{% endblock %}
+{% block innhold %}
+<h1>Nytt tilbud</h1>
+<div id="feil" class="feil" style="display:none"></div>
+
+<div class="kort">
+  <label>Legg til vare</label>
+  <input id="sok" placeholder="Søk på varenummer eller navn — minst 2 tegn" autocomplete="off">
+  <div id="treff" style="margin-top:.5rem"></div>
+</div>
+
+<div class="kort">
+  <table id="linjer">
+    <thead><tr>
+      <th>Vare</th><th class="tall" style="width:5.5rem">Antall</th>
+      <th class="tall" style="width:6.5rem">Veil. eks. mva</th>
+      <th style="width:15rem">Pris til kunde</th>
+      <th class="tall" style="width:8.5rem">Linjesum</th><th style="width:2rem"></th>
+    </tr></thead>
+    <tbody id="kropp">
+      <tr id="ingen"><td colspan="6" class="tom">Ingen varer lagt til ennå.</td></tr>
+    </tbody>
+    <tfoot>
+      <tr id="rad-veil" hidden><td colspan="4" class="tall">Sum før rabatt, eks. mva</td>
+          <td class="tall"><span id="sum-veil">0,00</span>
+              <br><span id="sum-veil-inkl"
+              style="color:#6b7280;font-weight:400;font-size:.8rem"></span></td><td></td></tr>
+      <tr id="rad-rabatt" hidden><td colspan="4" class="tall">
+            Rabatt <span id="rabatt-pst" style="color:#6b7280;font-weight:400"></span></td>
+          <td class="tall" style="color:#b91c1c"><span id="sum-rabatt">0,00</span>
+              <br><span id="sum-rabatt-inkl"
+              style="color:#6b7280;font-weight:400;font-size:.8rem"></span></td><td></td></tr>
+      <tr id="rad-kampanje" hidden><td colspan="4" class="tall"
+            style="font-weight:400;color:#6b7280;font-size:.85rem">herav fra pågående kampanje</td>
+          <td class="tall" id="sum-kampanje"
+            style="font-weight:400;color:#6b7280;font-size:.85rem">0,00</td><td></td></tr>
+      <tr><td colspan="4" class="tall">Sum eks. mva</td><td class="tall" id="sum-eks">0,00</td><td></td></tr>
+      <tr><td colspan="4" class="tall">Mva</td><td class="tall" id="sum-mva">0,00</td><td></td></tr>
+      <tr><td colspan="4" class="tall"><strong>Sum inkl. mva</strong></td>
+          <td class="tall"><strong id="sum-inkl">0,00</strong></td><td></td></tr>
+    </tfoot>
+  </table>
+  <p style="color:#6b7280;font-size:.85rem;margin:.75rem 0 0">
+    Summene her er et anslag for din egen del. Det er serveren som regner den
+    endelige prisen når tilbudet lagres.</p>
+</div>
+
+<div class="kort">
+  <label style="font-size:.95rem;color:#111;margin-bottom:.75rem">Kunde</label>
+  <div class="rad rad-2">
+    <div><label for="kf">Firma</label><input id="kf"></div>
+    <div><label for="kk">Kontaktperson</label><input id="kk"></div>
+  </div>
+  <div class="rad rad-2">
+    <div><label for="ke">E-post</label><input id="ke" type="email"></div>
+    <div><label for="kt">Telefon</label><input id="kt"></div>
+  </div>
+  <div class="rad">
+    <div><label for="notat">Notat i tilbudet</label>
+    <textarea id="notat" rows="2" placeholder="F.eks. leveringstid eller forutsetninger"></textarea></div>
+  </div>
+</div>
+
+<div class="kort">
+  <button class="knapp" id="lagre">Lag tilbud og send til meg</button>
+  <span style="color:#6b7280;margin-left:.75rem">Dokumentet sendes til {{ bruker.email }}</span>
+</div>
+
+<script>
+// Katalogdata (navn, SKU, bilde-URL) settes inn i HTML her; escapes så et produktnavn med <img onerror=…>
+// ikke kan kjøre skript hos selgeren (03.10.2026).
+const esc = v => String(v ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+const linjer = [];
+const nf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});
+const $ = s => document.querySelector(s);
+
+let tid;
+$('#sok').addEventListener('input', e => {
+  clearTimeout(tid);
+  const q = e.target.value.trim();
+  if (q.length < 2) { $('#treff').innerHTML = ''; return; }
+  tid = setTimeout(async () => {
+    const r = await fetch('/api/sok?q=' + encodeURIComponent(q));
+    const data = await r.json();
+    $('#treff').innerHTML = data.length ? data.map(p => `
+      <div style="display:flex;gap:.75rem;align-items:center;padding:.5rem;border-bottom:1px solid #eee">
+        ${p.bilde_url
+          ? `<img src="${esc(p.bilde_url)}" alt="" loading="lazy"
+                  style="width:44px;height:44px;object-fit:contain;flex:0 0 44px;
+                         background:#fff;border:1px solid #eee;border-radius:4px">`
+          : `<div style="width:44px;height:44px;flex:0 0 44px;border:1px solid #eee;
+                         border-radius:4px;background:#fafafa"></div>`}
+        <div style="flex:1;min-width:0">
+          <strong>${esc(p.sku)}</strong> ${esc(p.navn)}
+          ${p.prisvariasjon ? '<span class="merkelapp m-generert">varierende pris</span>' : ''}
+        </div>
+        <div style="color:#6b7280;white-space:nowrap;text-align:right">
+          ${esc(p.kampanjepris_vis)} eks. mva<br>
+          <span style="font-size:.8rem">${nf.format(
+            medMva(parseFloat(p.kampanjepris), parseFloat(p.mva_sats ?? 25)))} inkl.</span>
+        </div>
+        <button class="knapp sekundaer" data-p='${JSON.stringify(p).replace(/'/g,"&#39;")}'>Legg til</button>
+      </div>`).join('') : '<p style="color:#6b7280">Ingen treff.</p>';
+    $('#treff').querySelectorAll('button').forEach(b =>
+      b.onclick = () => { leggTil(JSON.parse(b.dataset.p)); $('#sok').value=''; $('#treff').innerHTML=''; });
+  }, 250);
+});
+
+function leggTil(p) {
+  linjer.push({...p, antall: 1, modus: 'ingen', rabatt: '', fastpris: ''});
+  tegn();
+}
+
+function nettopris(l) {
+  const k = parseFloat(l.kampanjepris);
+  if (l.modus === 'prosent' && l.rabatt !== '') {
+    const r = parseFloat(String(l.rabatt).replace(',', '.'));
+    if (!isNaN(r)) return Math.round(k * (100 - r)) / 100;
+  }
+  if (l.modus === 'fastpris' && l.fastpris !== '') {
+    const f = parseFloat(String(l.fastpris).replace(',', '.'));
+    if (!isNaN(f)) return Math.round(f * 100) / 100;
+  }
+  return k;
+}
+
+// Rabatten males mot VEIL. PRIS (listepris), fordi det er tallet som staar i
+// kolonnen ved siden av og det kunden oppfatter som utgangspunktet. Merk at
+// selgerens prosent regnes av kampanjeprisen (se api/prising.py), saa gaar det
+// en kampanje er avviket fra veil. stoerre enn prosenten selgeren skrev inn.
+// Differansen vises derfor for seg som "herav fra paagaaende kampanje".
+function linjetall(l) {
+  const antall = parseInt(l.antall) || 0;
+  const netto  = nettopris(l);
+  const veil   = parseFloat(l.listepris);
+  const kamp   = parseFloat(l.kampanjepris);
+  const sats = parseFloat(l.mva_sats ?? 25);
+  const bruttosum = veil * antall;
+  const linjesum  = netto * antall;
+  const rabatt    = Math.max(0, (veil - netto)) * antall;
+  return {
+    antall, netto, veil, kamp, sats,
+    bruttosum, linjesum, rabatt,
+    frakampanje: Math.max(0, (veil - kamp)) * antall,
+    // Katalogprisene er lagret inkl. mva i Magento og regnet ned til eks. mva
+    // i api/katalog.py. Her regnes de opp igjen for visning, med produktets
+    // egen sats - ikke en hardkodet 1,25. Se CLAUDE.md §4 i /var/www/bww for
+    // hvorfor det siste er en felle butikken har gaatt i to ganger.
+    veilInkl:      medMva(veil, sats),
+    nettoInkl:     medMva(netto, sats),
+    bruttosumInkl: medMva(bruttosum, sats),
+    linjesumInkl:  medMva(linjesum, sats),
+    rabattInkl:    medMva(rabatt, sats),
+  };
+}
+
+function medMva(eks, sats) {
+  return eks + Math.round(eks * sats) / 100;
+}
+
+// Undertekst pa linja. Viser bare det som faktisk tilfoerer noe:
+// stykkprisen naar antallet er over 1, og rabatten naar det gis en.
+// Med ett stk. og ingen rabatt er linjesummen alt som trengs.
+// Innholdet i Linjesum-cella. Egen funksjon fordi den ma kunne oppdateres
+// UTEN a tegne tabellen pa nytt - se oninput-handteringen lenger nede.
+function linjesumHtml(l) {
+  const netto = nettopris(l);
+  return nf.format(netto * (parseInt(l.antall) || 0)) + linjeNote(l, netto);
+}
+
+function graa(tekst) {
+  return `<span style="color:#6b7280;font-weight:400;font-size:.8rem;white-space:nowrap">`
+       + tekst + `</span>`;
+}
+
+function linjeNote(l, netto) {
+  const t = linjetall(l);
+  // Forste graa linje: samme belop inkl. mva. Butikken viser priser inkl. mva
+  // (ren B2C), mens tilbudet er eks. mva - selgeren ma kunne se begge uten
+  // aa regne i hodet naar kunden refererer til nettbutikkprisen.
+  const linjer = [nf.format(t.linjesumInkl) + ' inkl. mva'];
+
+  const deler = [];
+  if (t.antall > 1) deler.push(`${nf.format(netto)} pr. stk.`);
+  if (t.rabatt >= 0.005) deler.push(`&minus;${nf.format(t.rabatt)} i rabatt`);
+  if (deler.length) linjer.push(deler.join(' · '));
+
+  return linjer.map(x => '<br>' + graa(x)).join('');
+}
+
+function tegn() {
+  const kropp = $('#kropp');
+  if (!linjer.length) {
+    kropp.innerHTML = '<tr id="ingen"><td colspan="6" class="tom">Ingen varer lagt til ennå.</td></tr>';
+    $('#sum-eks').textContent = $('#sum-mva').textContent = $('#sum-inkl').textContent = '0,00';
+    return;
+  }
+  kropp.innerHTML = linjer.map((l, i) => {
+    const netto = nettopris(l);
+    return `<tr>
+      <td>
+        <div style="display:flex;gap:.6rem;align-items:flex-start">
+          ${l.bilde_url
+            ? `<img src="${esc(l.bilde_url)}" alt="" loading="lazy"
+                    style="width:40px;height:40px;object-fit:contain;flex:0 0 40px;
+                           background:#fff;border:1px solid #eee;border-radius:4px">`
+            : ''}
+          <div style="min-width:0">
+            <strong>${esc(l.sku)}</strong><br><span style="color:#6b7280">${esc(l.navn)}</span>
+          </div>
+        </div>
+      </td>
+      <td class="tall"><input type="number" min="1" value="${l.antall}" data-i="${i}" data-f="antall" style="text-align:right"></td>
+      <td class="tall">${esc(l.listepris_vis)}<br>${graa(nf.format(linjetall(l).veilInkl) + ' inkl.')}</td>
+      <td>
+        <label style="font-weight:400;color:#111;display:flex;gap:.4rem;align-items:center;margin-bottom:.3rem">
+          <input type="radio" name="m${i}" value="prosent" data-i="${i}" data-f="modus"
+                 ${l.modus==='prosent'?'checked':''} style="width:auto">
+          <span style="white-space:nowrap">Rabatt</span>
+          <input type="number" step="0.1" min="0" max="100" placeholder="10" value="${l.rabatt}"
+                 data-i="${i}" data-f="rabatt" ${l.modus!=='prosent'?'disabled':''} style="width:5rem">
+          <span>%</span>
+        </label>
+        <label style="font-weight:400;color:#111;display:flex;gap:.4rem;align-items:center;margin-bottom:.3rem">
+          <input type="radio" name="m${i}" value="fastpris" data-i="${i}" data-f="modus"
+                 ${l.modus==='fastpris'?'checked':''} style="width:auto">
+          <span style="white-space:nowrap">Fastpris</span>
+          <input type="number" step="0.01" min="0" placeholder="0,00" value="${l.fastpris}"
+                 data-i="${i}" data-f="fastpris" ${l.modus!=='fastpris'?'disabled':''} style="width:6rem">
+        </label>
+        <label style="font-weight:400;color:#6b7280;display:flex;gap:.4rem;align-items:center">
+          <input type="radio" name="m${i}" value="ingen" data-i="${i}" data-f="modus"
+                 ${l.modus==='ingen'?'checked':''} style="width:auto">
+          <span>Ingen rabatt</span>
+        </label>
+      </td>
+      <td class="tall" id="linjesum-${i}">${linjesumHtml(l)}</td>
+      <td><button class="knapp sekundaer" data-i="${i}" data-f="slett"
+                  style="padding:.2rem .55rem;border-width:1px">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  kropp.querySelectorAll('[data-f]').forEach(el => {
+    const i = +el.dataset.i, f = el.dataset.f;
+    if (f === 'slett') { el.onclick = () => { linjer.splice(i,1); tegn(); }; return; }
+    if (f === 'modus') {
+      el.onchange = () => {
+        linjer[i].modus = el.value;
+        // Enten/eller: nullstill det feltet som ikke gjelder, sa det aldri
+        // ligger en gammel verdi igjen og blir sendt med.
+        if (el.value !== 'prosent')  linjer[i].rabatt = '';
+        if (el.value !== 'fastpris') linjer[i].fastpris = '';
+        tegn();
+      };
+      return;
+    }
+    el.oninput = () => {
+      linjer[i][f] = el.value;
+      // Full tegn() her ville bygget tabellen pa nytt og revet fokus ut av
+      // feltet selgeren skriver i. Derfor oppdateres bare den ene cella.
+      // Uten dette sto Linjesum igjen med tallet fra forrige tegning mens
+      // bunnsummene falt - altsa en linje som viste pris FOR rabatt.
+      const celle = document.getElementById('linjesum-' + i);
+      if (celle) celle.innerHTML = linjesumHtml(linjer[i]);
+      oppdaterSummer();
+    };
+  });
+  oppdaterSummer();
+}
+
+// Skriver tekst i ett element. Finnes det ikke, hopper vi over det i stedet
+// for aa kaste. Bakgrunn: `#sum-veil-inkl` laa en periode INNE i `#sum-veil`,
+// og `textContent` paa forelderen slettet barnet. Neste oppslag ga null,
+// TypeError, og resten av oppdaterSummer() kjorte aldri - saa rabattraden ble
+// staaende paa 0,00 mens tallene over var riktige. Strukturen er rettet, men
+// vernet blir staaende: en summering skal ikke kunne dø av en manglende node.
+function settTekst(id, tekst) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = tekst;
+}
+
+function oppdaterSummer() {
+  let eks = 0, mva = 0, brutto = 0, rabatt = 0, kampanje = 0;
+  let bruttoInkl = 0, rabattInkl = 0;
+  linjer.forEach(l => {
+    const t = linjetall(l);
+    const sum = Math.round(t.netto * 100) / 100 * t.antall;
+    eks        += sum;
+    mva        += Math.round(sum * t.sats) / 100;
+    brutto     += t.bruttosum;
+    rabatt     += t.rabatt;
+    kampanje   += t.frakampanje;
+    bruttoInkl += t.bruttosumInkl;
+    rabattInkl += t.rabattInkl;
+  });
+
+  settTekst('sum-eks',  nf.format(eks));
+  settTekst('sum-mva',  nf.format(mva));
+  settTekst('sum-inkl', nf.format(eks + mva));
+
+  // Bruttolinja og rabattlinja vises bare naar det faktisk gis rabatt.
+  // Uten rabatt ville "Sum veil." og "Sum eks. mva" vaert samme tall to ganger.
+  const harRabatt = rabatt >= 0.005;
+  $('#rad-veil').hidden   = !harRabatt;
+  $('#rad-rabatt').hidden = !harRabatt;
+  if (harRabatt) {
+    settTekst('sum-veil',        nf.format(brutto));
+    settTekst('sum-veil-inkl',   nf.format(bruttoInkl) + ' inkl. mva');
+    settTekst('sum-rabatt',      '−' + nf.format(rabatt));
+    settTekst('sum-rabatt-inkl', '−' + nf.format(rabattInkl) + ' inkl. mva');
+    settTekst('rabatt-pst', brutto > 0
+      ? '(' + nf.format(rabatt / brutto * 100).replace(',00', '') + ' %)' : '');
+  }
+  $('#rad-kampanje').hidden = !(harRabatt && kampanje >= 0.005);
+  if (kampanje >= 0.005) settTekst('sum-kampanje', '−' + nf.format(kampanje));
+}
+
+$('#lagre').onclick = async () => {
+  const f = $('#feil'); f.style.display = 'none';
+  if (!linjer.length) { f.textContent = 'Legg til minst én vare.'; f.style.display='block'; return; }
+  $('#lagre').disabled = true; $('#lagre').textContent = 'Lager tilbud …';
+  const r = await fetch('/nytt', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      kunde_firma: $('#kf').value, kunde_kontakt: $('#kk').value,
+      kunde_epost: $('#ke').value, kunde_telefon: $('#kt').value,
+      notat: $('#notat').value,
+      linjer: linjer.map(l => ({
+        produkt_id: l.produkt_id, antall: parseInt(l.antall) || 1,
+        rabatt_prosent: l.modus === 'prosent'  ? l.rabatt   : null,
+        fastpris:       l.modus === 'fastpris' ? l.fastpris : null,
+      })),
+    }),
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    f.textContent = d.feil || 'Noe gikk galt.'; f.style.display = 'block';
+    $('#lagre').disabled = false; $('#lagre').textContent = 'Lag tilbud og send til meg';
+    return;
+  }
+  location.href = '/tilbud/' + d.id;
+};
+</script>
+{% endblock %}

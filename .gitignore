@@ -1,0 +1,12 @@
+.env
+venv/
+__pycache__/
+*.pyc
+# Kundedata og cache
+generert/
+bildecache/
+# Lokale rester
+*.bak
+*.bak[0-9]*
+*.bak-*
+*.for-*

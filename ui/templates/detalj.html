@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% block tittel %}{{ t.tilbudsnr }}{% endblock %}
+{% block innhold %}
+<h1>{{ t.tilbudsnr }} <span class="merkelapp m-{{ t.status }}">{{ t.status }}</span></h1>
+<div class="kort">
+  <div class="rad rad-2">
+    <div><label>Kunde</label>
+      {{ t.kunde_firma or "—" }}<br>{{ t.kunde_kontakt }}<br>
+      {{ t.kunde_epost }}<br>{{ t.kunde_telefon }}</div>
+    <div><label>Selger</label>
+      {{ t.selger_navn or t.selger_epost }}<br>{{ t.selger_epost }}<br>{{ t.selger_telefon }}</div>
+  </div>
+</div>
+<div class="kort">
+  <table>
+    <thead><tr><th>Varenr.</th><th>Beskrivelse</th><th class="tall">Antall</th>
+      <th class="tall">Veil.</th><th class="tall">Din pris</th><th class="tall">Sum</th></tr></thead>
+    <tbody>
+    {% for l in t.linjer %}
+      <tr>
+        <td>{{ l.sku }}</td>
+        <td>{{ l.navn }}
+          {% if l.rabatt_type == "prosent" %}
+            <br><span style="color:#6b7280;font-size:.85rem">{{ l.rabatt_prosent|prosent }} % rabatt</span>
+          {% elif l.rabatt_type == "fastpris" %}
+            <br><span style="color:#6b7280;font-size:.85rem">avtalt fastpris</span>
+          {% endif %}</td>
+        <td class="tall">{{ l.antall }}</td>
+        <td class="tall">{{ l.listepris|kr }}</td>
+        <td class="tall">{{ l.nettopris|kr }}</td>
+        <td class="tall">{{ l.linjesum|kr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="5" class="tall">Sum eks. mva</td><td class="tall">{{ t.sum_eks_mva|kr }}</td></tr>
+      <tr><td colspan="5" class="tall">Mva</td><td class="tall">{{ t.sum_mva|kr }}</td></tr>
+      <tr><td colspan="5" class="tall"><strong>Sum inkl. mva</strong></td>
+          <td class="tall"><strong>{{ t.sum_inkl_mva|kr }}</strong></td></tr>
+    </tfoot>
+  </table>
+  {% if t.notat %}<p style="margin-top:1rem"><label>Notat</label>{{ t.notat }}</p>{% endif %}
+  <p style="color:#6b7280;font-size:.85rem;margin-top:1rem">
+    Prisene over er frosset slik de var {{ t.created_at.strftime("%d.%m.%Y") }}. De endrer seg
+    ikke om katalogen endres.</p>
+</div>
+<div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+  <a class="knapp" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
+  {% if t.status != "sendt" %}
+    <form method="post" action="/tilbud/{{ t.id }}/sendt" style="margin:0">
+      <button class="knapp sekundaer" type="submit">Marker som sendt til kunde</button>
+    </form>
+  {% else %}
+    <span style="color:#6b7280">Markert som sendt {{ t.sendt_at.strftime("%d.%m.%Y kl. %H:%M") }}.</span>
+  {% endif %}
+</div>
+{% endblock %}
