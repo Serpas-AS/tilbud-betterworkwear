@@ -29,6 +29,7 @@ metadata-endepunkter og lignende. Derfor:
 * svaret leses i biter med tak på størrelse (etter gzip-utpakking) og en
   samlet tidsfrist.
 """
+import html as htmllib
 import ipaddress
 import json
 import re
@@ -45,6 +46,7 @@ import urllib3
 MAKS_BYTES = 3 * 1024 * 1024
 MAKS_OMDIRIGERINGER = 5
 FRIST_SEKUNDER = 15
+MAKS_BESKRIVELSE = 5000   # tegn - samme tak som i tjeneste.manuell_produkt
 AGENT = "Mozilla/5.0 (compatible; BWW-tilbud/1.0; +https://tilbud.betterworkwear.no)"
 
 
@@ -92,8 +94,10 @@ def _offentlig_adresse(vert: str, port: int) -> str:
     return sorted(adresser)[0][1]   # IPv4 først
 
 
-def _hent(url: str) -> (str, bytes):
-    """GET med SSRF-vernet over. Returnerer (endelig URL, innhold)."""
+def _hent(url: str, maks: int = MAKS_BYTES,
+          accept: str = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5") -> (str, bytes):
+    """GET med SSRF-vernet over. Returnerer (endelig URL, innhold).
+    Brukes også av api/bilder.py til produktbilder fra andre nettsteder."""
     frist = time.monotonic() + FRIST_SEKUNDER
     for _ in range(MAKS_OMDIRIGERINGER + 1):
         skjema, vert, sti = _sjekk_url(url)
@@ -110,8 +114,7 @@ def _hent(url: str) -> (str, bytes):
             pool = urllib3.HTTPConnectionPool(ip, port=port, timeout=timeout, retries=False)
         try:
             r = pool.urlopen("GET", sti, redirect=False, preload_content=False, headers={
-                "Host": vert, "User-Agent": AGENT,
-                "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
+                "Host": vert, "User-Agent": AGENT, "Accept": accept,
                 "Accept-Language": "nb-NO,nb;q=0.9,no;q=0.8,en;q=0.5",
             })
         except urllib3.exceptions.SSLError:
@@ -128,7 +131,7 @@ def _hent(url: str) -> (str, bytes):
             biter, lest = [], 0
             for bit in r.stream(64 * 1024, decode_content=True):
                 lest += len(bit)
-                if lest > MAKS_BYTES:
+                if lest > maks:
                     raise HentFeil("Siden er for stor til å leses.")
                 if time.monotonic() > frist:
                     raise HentFeil("Nettstedet brukte for lang tid på å svare.")
@@ -216,17 +219,62 @@ def _tekst(v) -> str:
     return re.sub(r"\s+", " ", str(v or "")).strip()
 
 
-def _fra_jsonld(doc) -> Dict:
+def _ren_tekst(v) -> str:
+    """Beskrivelse til produktdatabladet som ren tekst. JSON-LD har ofte HTML
+    eller HTML-entiteter i `description`; avsnittsskift beholdes."""
+    if isinstance(v, list):
+        v = " ".join(str(x) for x in v if isinstance(x, (str, int, float)))
+    s = str(v or "").strip()
+    if not s:
+        return ""
+    if "<" in s:
+        s = re.sub(r"</(p|div|li|h[1-6])\s*>|<br\s*/?>", "\n\n", s, flags=re.I)
+        try:
+            s = lxml.html.fragment_fromstring(s, create_parent="div").text_content()
+        except (ValueError, lxml.etree.ParserError):
+            s = re.sub(r"<[^>]+>", "", s)
+    s = htmllib.unescape(s).replace("\xa0", " ")
+    s = "\n".join(re.sub(r"[ \t]+", " ", linje).strip() for linje in s.split("\n"))
+    return re.sub(r"\n{3,}", "\n\n", s).strip()[:MAKS_BESKRIVELSE]
+
+
+def _variant(p: Dict, url: str) -> Dict:
+    """Varianten i en ProductGroup som lenken peker på, ellers {}.
+
+    Snickers (Hultafors) har én variant per farge, og lenken slutter på
+    variantens sku (…/69400467). Gruppens første bilde er en annen farge."""
+    sti = urlsplit(url).path.rstrip("/")
+    for v in p.get("hasVariant") or []:
+        if not isinstance(v, dict):
+            continue
+        vurl = urlsplit(_tekst(v.get("url"))).path.rstrip("/")
+        sku = _tekst(v.get("sku"))
+        if (vurl and vurl == sti) or (sku and sti.endswith("/" + sku)):
+            return v
+    return {}
+
+
+def _fra_jsonld(doc, url: str = "") -> Dict:
     for s in doc.xpath('//script[contains(translate(@type,"JSONLD","jsonld"),"ld+json")]'):
         try:
             data = json.loads(s.text_content() or "", strict=False)
         except ValueError:
             continue
         for p in _produkter(data):
-            ut = {"navn": _tekst(p.get("name")),
-                  "sku": _tekst(p.get("sku") or p.get("mpn") or p.get("productID")),
-                  "bilde_url": _tekst(p.get("image"))}
-            pris = _pris_fra_tilbud(p.get("offers"))
+            v = _variant(p, url)
+            gruppe = p.get("isVariantOf") if isinstance(p.get("isVariantOf"), dict) else {}
+            beskrivelse = _ren_tekst(v.get("description") or p.get("description"))
+            materiale = _ren_tekst(p.get("material") or v.get("material"))
+            if materiale and materiale not in beskrivelse:
+                beskrivelse = (beskrivelse + "\n\n" if beskrivelse else "") + f"Materiale: {materiale}"
+            ut = {"navn": _tekst(p.get("name")), "beskrivelse": beskrivelse,
+                  # Modellnummeret (`productGroupID`, f.eks. Snickers 6940) foran
+                  # variantens sku (69400467 = 6940 + fargekode): tilbudet gis
+                  # på plagget, ikke på én farge - samme prinsipp som katalogen.
+                  "sku": _tekst(p.get("productGroupID") or gruppe.get("productGroupID")
+                                or p.get("sku") or p.get("mpn") or p.get("productID")),
+                  "bilde_url": _tekst(v.get("image") or p.get("image"))}
+            pris = _pris_fra_tilbud(v.get("offers") or p.get("offers"))
             if not pris and p.get("hasVariant"):
                 pris = _pris_fra_tilbud([v.get("offers") for v in p["hasVariant"]
                                          if isinstance(v, dict)])
@@ -256,7 +304,7 @@ def tolk(html: bytes, url: str = "") -> Dict:
     except (ValueError, lxml.etree.ParserError):
         raise HentFeil("Siden kunne ikke leses som HTML.")
 
-    ut = _fra_jsonld(doc)
+    ut = _fra_jsonld(doc, url)
     if not ut.get("navn"):
         ut["navn"] = _meta(doc, "og:title", "name") or _tekst(
             (doc.xpath("//title/text()") or [""])[0])
@@ -267,6 +315,8 @@ def tolk(html: bytes, url: str = "") -> Dict:
         ut["valuta"] = _meta(doc, "product:price:currency", "og:price:currency", "priceCurrency")
     if not ut.get("bilde_url"):
         ut["bilde_url"] = _meta(doc, "og:image")
+    if not ut.get("beskrivelse"):
+        ut["beskrivelse"] = _ren_tekst(_meta(doc, "og:description", "description"))
 
     # Bildet vises bare som forhåndsvisning i skjemaet, det lagres ikke.
     # Bare http(s): en `javascript:`- eller `data:`-adresse fra siden skal ikke videre.
@@ -280,6 +330,7 @@ def tolk(html: bytes, url: str = "") -> Dict:
         "pris": str(ut["pris"]) if ut.get("pris") else "",
         "valuta": (ut.get("valuta") or "").upper()[:3],
         "bilde_url": bilde,
+        "beskrivelse": ut.get("beskrivelse", ""),
     }
 
 

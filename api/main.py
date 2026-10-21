@@ -17,12 +17,12 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 from starlette.concurrency import run_in_threadpool
 
-from api import bilder, ekstern, katalog, epost, tjeneste
+from api import bilder, eksport, ekstern, katalog, epost, tjeneste
 from api.db import tilbud_db
 from api.dokument import kr
 from api.prising import PrisFeil
@@ -267,7 +267,9 @@ async def opprett(request: Request):
             m = v["manuell"]
             manuell = {"sku": str(m.get("sku") or ""), "navn": str(m.get("navn") or ""),
                        "pris": _des(m.get("pris")), "inkl_mva": bool(m.get("inkl_mva")),
-                       "kilde_url": str(m.get("kilde_url") or "")}
+                       "kilde_url": str(m.get("kilde_url") or ""),
+                       "kilde_bilde_url": str(m.get("kilde_bilde_url") or ""),
+                       "kilde_beskrivelse": str(m.get("kilde_beskrivelse") or "")}
         linjer.append({
             "produkt_id": v.get("produkt_id"),
             "manuell": manuell,
@@ -303,7 +305,8 @@ async def detalj(request: Request, tilbud_id: int):
     if not t:
         raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
     return templates.TemplateResponse(request, "detalj.html",
-        {"request": request, "bruker": bruker, "t": t})
+        {"request": request, "bruker": bruker, "t": t,
+         "kan_eksportere": eksport.har_tilgang(bruker)})
 
 
 @app.get("/tilbud/{tilbud_id}/dokument")
@@ -314,6 +317,21 @@ async def last_ned(request: Request, tilbud_id: int):
         raise HTTPException(status_code=404, detail="Dokumentet finnes ikke")
     return FileResponse(t["docx_path"], filename=f"Tilbud-{t['tilbudsnr']}.docx",
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@app.get("/tilbud/{tilbud_id}/xlsx")
+async def last_ned_xlsx(request: Request, tilbud_id: int):
+    """Excel-eksport. Bare for EKSPORT_TILGANG - knappen skjules for andre, men det er HER det håndheves."""
+    bruker = _krev(request)
+    if not eksport.har_tilgang(bruker):
+        raise HTTPException(status_code=403, detail="Ingen tilgang til eksport")
+    t = tjeneste.hent_tilbud(bruker, tilbud_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
+    return Response(
+        await run_in_threadpool(eksport.lag_xlsx, t),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="Tilbud-{t["tilbudsnr"]}.xlsx"'})
 
 
 @app.post("/tilbud/{tilbud_id}/sendt")

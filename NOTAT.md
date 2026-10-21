@@ -93,6 +93,24 @@ Møtet hos BWW 01.09 kan gi tilbakemeldinger på oppsettet — da tas de her.
 
 ---
 
+## Endret 21.10.2026: Excel-eksport
+
+Knappen «Eksporter til Excel» på tilbudssiden (`/tilbud/{id}/xlsx`,
+`api/eksport.py`) gir et regneark med samme kolonner som arkene som
+importeres i tilbudsløsningen på den andre serveren (mal:
+`/home/magento/ny-better/THORSTEINSEN.xlsx`).
+
+- **Bare for `TILBUD_EKSPORT_EPOST`** (kommaseparert, standard
+  `morten@serpas.no`). Håndheves i ruta, ikke bare ved å skjule knappen.
+- Veil. pris og Kundepris er eks. mva fra de frosne linjene. Rabatt er
+  prosent i forhold til veil. pris, slik at malens Kundepris = Veil. ×
+  (1 − Rabatt) stemmer også ved fastpris og kampanjepris.
+- Størrelser, farge (`color_group`), kategori og lenke slås opp i `bww_web`
+  nå. Derfor har `tilbud` fått `SELECT` på `bww_web.categories` i tillegg.
+- Tekst som begynner med «=» lagres som tekst, ikke formel. Navn fra
+  eksterne sider skal ikke kunne bli formler i regnearket.
+- Ny avhengighet: `openpyxl` (i `requirements.txt`).
+
 ## Endret 21.10.2026: varer utenfor nettbutikken
 
 Selgerne gir også tilbud på varer som ikke finnes i `bww_web`. Under
@@ -110,7 +128,19 @@ Feltene kan også fylles ut helt for hånd.
   oppslag fra serverens IP-adresse med 403/429. Selgeren får beskjed og fyller
   ut selv. Det hjelper ikke å late som man er en nettleser - prøvd.
 - Linja lagres med `produkt_id = NULL` og ny kolonne `tilbud_linje.kilde_url`.
-  Den får ingen bilde i dokumentet og intet produktdatablad.
+- **Varenummer:** `productGroupID` (modellen, f.eks. Snickers 6940) går foran
+  variantens `sku` (69400467 = modell + fargekode). Bilde og pris tas fra
+  varianten lenken peker på. CSS-klasser som `product-card_code__gmhTj` er
+  med vilje ikke brukt - endelsen byttes ved hver bygg av nettstedet.
+- **Produktdatablad:** beskrivelsen (JSON-LD `description` + `material`,
+  ellers `og:description`) foreslås i skjemaet og lagres som ren tekst i
+  `tilbud_linje.kilde_beskrivelse`. Bare linjer MED beskrivelse får ark.
+- **Bilde:** foreslås fra siden (JSON-LD / `og:image`) og kan rettes eller
+  limes inn. Adressen lagres i `tilbud_linje.kilde_bilde_url`, og bildet
+  lastes ned når tilbudet lages (`bilder.hent_ekstern`, samme SSRF-vern,
+  maks 15 MB, må kunne åpnes av Pillow). Originalen fryses som
+  `bildecache/ekstern-<sha1 av URL>`. Feiler nedlastingen, beholdes adressen
+  (Excel-eksporten bruker den), men Word-dokumentet får ikke bilde.
 - **SSRF-vern** i `api/ekstern.py`: bare http/https på port 80/443, alle
   DNS-svar må være offentlige adresser, tilkoblingen går til den sjekkede
   IP-en (vern mot DNS rebinding), og hver omdirigering sjekkes på nytt.

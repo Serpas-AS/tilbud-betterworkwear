@@ -14,7 +14,7 @@ from decimal import Decimal
 from typing import Dict, List, Optional
 
 from api.db import tilbud_db
-from api import katalog, dokument
+from api import bilder, katalog, dokument
 from api.prising import beregn_linje, summer, PrisFeil
 
 SER_ALLE = ("ledelse", "admin")
@@ -51,15 +51,22 @@ def manuell_produkt(m: Dict) -> Dict:
         raise PrisFeil(f"Navnet eller varenummeret til «{navn[:40]}» er for langt.")
     if pris is None or pris <= 0:
         raise PrisFeil(f"«{navn}» mangler pris.")
-    # Lenken vises som klikkbar på tilbudssiden - bare http(s), aldri javascript: o.l.
+    # Lenkene vises som klikkbare / lastes ned - bare http(s), aldri javascript: o.l.
     if kilde and (not kilde.lower().startswith(("https://", "http://")) or len(kilde) > 500):
         kilde = ""
+    beskrivelse = (m.get("kilde_beskrivelse") or "").strip()
+    if len(beskrivelse) > 5000:
+        raise PrisFeil(f"Beskrivelsen til «{navn[:40]}» er for lang (maks 5000 tegn).")
+    bilde = (m.get("kilde_bilde_url") or "").strip()
+    if bilde and (not bilde.lower().startswith(("https://", "http://")) or len(bilde) > 1000):
+        bilde = ""
     eks = pris if not m.get("inkl_mva") else katalog._eks_mva(pris, katalog.MVA_SATS)
     eks = katalog._q2(eks)
     return {
         "produkt_id": None, "sku": sku, "navn": navn, "bilde": None,
         "listepris": eks, "kampanjepris": eks, "mva_sats": katalog.MVA_SATS,
-        "kilde_url": kilde or None,
+        "kilde_url": kilde or None, "kilde_bilde_url": bilde or None,
+        "kilde_beskrivelse": beskrivelse or None,
     }
 
 
@@ -92,6 +99,11 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
             fastpris=v.get("fastpris"),
         ))
         beregnede[-1]["kilde_url"] = produkt.get("kilde_url")
+        beregnede[-1]["kilde_bilde_url"] = produkt.get("kilde_bilde_url")
+        beregnede[-1]["kilde_beskrivelse"] = produkt.get("kilde_beskrivelse")
+        # Lastes ned og fryses nå, før dokumentet lages. Feiler det, beholdes
+        # adressen likevel (Excel-eksporten bruker den); Word får bare ikke bilde.
+        bilder.hent_ekstern(produkt.get("kilde_bilde_url"))
 
     totaler = summer(beregnede)
 
@@ -115,13 +127,14 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
                 """INSERT INTO tilbud_linje
                    (tilbud_id,sort_order,produkt_id,sku,navn,bilde,antall,listepris,
                     kampanjepris,rabatt_type,rabatt_prosent,fastpris,nettopris,
-                    linjesum,mva_sats,kilde_url)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    linjesum,mva_sats,kilde_url,kilde_bilde_url,kilde_beskrivelse)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (tilbud_id, i, l["produkt_id"], l["sku"], l["navn"],
                  l.get("bilde"), l["antall"],
                  l["listepris"], l["kampanjepris"], l["rabatt_type"],
                  l["rabatt_prosent"], l["fastpris"], l["nettopris"],
-                 l["linjesum"], l["mva_sats"], l.get("kilde_url")),
+                 l["linjesum"], l["mva_sats"], l.get("kilde_url"), l.get("kilde_bilde_url"),
+                 l.get("kilde_beskrivelse")),
             )
 
         cur.execute("SELECT * FROM tilbud WHERE id=%s", (tilbud_id,))

@@ -28,10 +28,13 @@ e-post og tregt å redigere - og selgeren SKAL redigere det. Miniatyrene
 lander på 3-6 KB.
 """
 import hashlib
+import io
 import os
 from typing import Optional
 
 from PIL import Image
+
+from api import ekstern
 
 MEDIA_DIR = os.environ.get(
     "KATALOG_MEDIA_DIR", "/var/www/ny.betterworkwear.no/data/media/catalog/product")
@@ -41,6 +44,7 @@ MEDIA_URL = os.environ.get(
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bildecache")
 BREDDE = 180          # px - rikelig for ~18 mm i Word ved 250 dpi
 KVALITET = 82
+MAKS_EKSTERN = 15 * 1024 * 1024   # leverandørbilder er ofte store originaler (Bastad: 5376 px)
 
 
 def _rel(sti: Optional[str]) -> Optional[str]:
@@ -83,12 +87,58 @@ def miniatyr(sti: Optional[str], bredde: int = BREDDE) -> Optional[str]:
     kilde = kildefil(sti)
     if not kilde:
         return None
+    return _skaler(kilde, _rel(sti), bredde)
 
+
+def _ekstern_fil(url: str) -> str:
+    return os.path.join(CACHE_DIR, "ekstern-" + hashlib.sha1(url.encode()).hexdigest())
+
+
+def hent_ekstern(url: Optional[str]) -> bool:
+    """
+    Laster ned et produktbilde fra et annet nettsted (varer utenfor nettbutikken)
+    og legger originalen i bildecachen. Returnerer om det finnes et brukbart bilde.
+
+    Kalles når tilbudet LAGES, så bildet fryses sammen med prisen: forsvinner
+    eller byttes det hos leverandøren, viser en regenerering fortsatt det samme.
+    Nedlastingen går gjennom SSRF-vernet i api/ekstern.py, og fila må kunne
+    åpnes som bilde av Pillow - ellers lagres ingenting.
+    """
+    if not url:
+        return False
+    fil = _ekstern_fil(url)
+    if os.path.isfile(fil):
+        return True
+    try:
+        _, data = ekstern._hent(url, maks=MAKS_EKSTERN, accept="image/*")
+        with Image.open(io.BytesIO(data)) as im:
+            im.verify()
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(fil + ".tmp", "wb") as f:
+            f.write(data)
+        os.replace(fil + ".tmp", fil)
+        return True
+    except Exception:
+        # Et manglende bilde skal ikke velte et tilbud.
+        return False
+
+
+def ekstern_miniatyr(url: Optional[str], bredde: int = BREDDE) -> Optional[str]:
+    """Som miniatyr(), for et bilde hent_ekstern() allerede har lastet ned."""
+    if not url:
+        return None
+    fil = _ekstern_fil(url)
+    if not os.path.isfile(fil):
+        return None
+    return _skaler(fil, url, bredde)
+
+
+def _skaler(kilde: str, navn: str, bredde: int) -> Optional[str]:
     st = os.stat(kilde)
     # mtime og størrelse i nøkkelen: byttes bildet ut i butikken uten at
     # filnavnet endres, lages miniatyren på nytt av seg selv.
     nokkel = hashlib.sha1(
-        f"{_rel(sti)}|{st.st_mtime_ns}|{st.st_size}|{bredde}".encode()
+        f"{navn}|{st.st_mtime_ns}|{st.st_size}|{bredde}".encode()
     ).hexdigest()
     ut = os.path.join(CACHE_DIR, f"{nokkel}.jpg")
     if os.path.isfile(ut):

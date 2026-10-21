@@ -122,15 +122,21 @@ def legg_til(doc, linjer: List[Dict], fakta: Dict[int, Dict[str, str]], kr) -> i
 
     Samme vare to ganger i tilbudet gir ett ark, ikke to.
 
-    Varer utenfor nettbutikken (uten `produkt_id`) får ikke ark: vi har ingen
-    beskrivelse eller vaskeanvisning for dem, bare det som står i pristabellen.
+    Varer utenfor nettbutikken (uten `produkt_id`) får ark bare hvis selgeren
+    har en beskrivelse (`kilde_beskrivelse`, ren tekst fra skjemaet - hentet
+    fra leverandørens side av api/ekstern.py og eventuelt rettet). Uten den
+    ville arket bare gjentatt pristabellen.
     """
     sett = set()
     antall = 0
 
-    for l in linjer:
+    for i, l in enumerate(linjer):
         mid = l.get("produkt_id")
-        if not mid or mid in sett:
+        if not mid:
+            if not (l.get("kilde_beskrivelse") or "").strip():
+                continue
+            mid = ("ekstern", i)   # egen nøkkel per linje - None ville slått dem sammen
+        if mid in sett:
             continue
         sett.add(mid)
 
@@ -144,7 +150,7 @@ def legg_til(doc, linjer: List[Dict], fakta: Dict[int, Dict[str, str]], kr) -> i
         _strek(navn, farge=GUL, tykkelse=12)
         _avsnitt(doc, f"Varenr. {l['sku']}", storrelse=9, farge=GRA, etter=10)
 
-        sti = bilders(l.get("bilde"))
+        sti = bilders(l.get("bilde"), l.get("kilde_bilde_url"))
         if sti:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(10)
@@ -158,7 +164,10 @@ def legg_til(doc, linjer: List[Dict], fakta: Dict[int, Dict[str, str]], kr) -> i
         _avsnitt(doc, f"{kr(inkl)} kr inkl. mva", storrelse=9, farge=GRA, etter=4)
 
         f = fakta.get(mid, {})
-        _bolk(doc, "Beskrivelse", vask(f.get("description", "")))
+        # Selgerens tekst er allerede ren tekst. Gjennom vask() ville en
+        # «<» i teksten («< 5 kg») kunne spist resten av avsnittet som en tagg.
+        _bolk(doc, "Beskrivelse", (l.get("kilde_beskrivelse") or "").strip()
+              or vask(f.get("description", "")))
         _bolk(doc, "Teknisk informasjon", vask(f.get("teknisk_beskrivelse", "")))
         _bolk(doc, "Vaskeanvisning", vask(f.get("vaskeanvisning", "")))
         if f.get("ean"):
@@ -169,9 +178,11 @@ def legg_til(doc, linjer: List[Dict], fakta: Dict[int, Dict[str, str]], kr) -> i
     return antall
 
 
-def bilders(sti):
-    """Bildet i full databladstorrelse. Feiler den, droppes bildet - ikke arket."""
+def bilders(sti, ekstern_url=None):
+    """Bildet i full databladstorrelse. Feiler den, droppes bildet - ikke arket.
+    `ekstern_url`: bildet til en vare utenfor nettbutikken, se bilder.hent_ekstern."""
     try:
-        return bilder.miniatyr(sti, bredde=650)
+        return (bilder.miniatyr(sti, bredde=650)
+                or bilder.ekstern_miniatyr(ekstern_url, bredde=650))
     except Exception:
         return None

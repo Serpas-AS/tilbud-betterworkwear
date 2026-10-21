@@ -50,6 +50,9 @@
 </div>
 <div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
   <a class="knapp" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
+  {% if kan_eksportere %}
+    <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/xlsx">Eksporter til Excel</a>
+  {% endif %}
   {% if t.status != "sendt" %}
     <form method="post" action="/tilbud/{{ t.id }}/sendt" style="margin:0">
       <button class="knapp sekundaer" type="submit">Marker som sendt til kunde</button>

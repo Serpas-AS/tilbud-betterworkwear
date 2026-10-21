@@ -37,6 +37,18 @@
         <label style="font-weight:400;color:#111;display:inline-flex;gap:.3rem;align-items:center">
           <input type="radio" name="e-mva" value="eks" style="width:auto"> eks. mva</label></div>
     </div>
+    <div class="rad" style="display:flex;gap:.75rem;align-items:flex-end">
+      <div style="flex:1"><label for="e-bilde">Bilde-URL <span style="font-weight:400;color:#6b7280">(valgfritt)</span></label>
+        <input id="e-bilde" type="url" placeholder="https://…/bilde.jpg"></div>
+      <img id="e-forhånd" alt="" hidden
+           style="width:56px;height:56px;object-fit:contain;flex:0 0 56px;background:#fff;
+                  border:1px solid #eee;border-radius:4px">
+    </div>
+    <div class="rad">
+      <div><label for="e-beskrivelse">Beskrivelse til produktdatabladet
+        <span style="font-weight:400;color:#6b7280">(valgfritt - uten beskrivelse lages det ikke datablad)</span></label>
+      <textarea id="e-beskrivelse" rows="4" maxlength="5000"></textarea></div>
+    </div>
     <button class="knapp" id="e-legg" type="button">Legg til i tilbudet</button>
   </details>
 </div>
@@ -150,7 +162,15 @@ const eMelding = (tekst, feil) => {
   $('#e-melding').textContent = tekst;
   $('#e-melding').style.color = feil ? '#b91c1c' : '#6b7280';
 };
-let eBilde = '';
+// Forhåndsvisning av bildet. Bare http(s) settes som src.
+function visBilde() {
+  const u = $('#e-bilde').value.trim(), img = $('#e-forhånd');
+  const ok = /^https?:\/\//i.test(u);
+  img.hidden = !ok;
+  if (ok) img.src = u; else img.removeAttribute('src');
+}
+$('#e-bilde').addEventListener('input', visBilde);
+$('#e-forhånd').onerror = () => { $('#e-forhånd').hidden = true; };
 
 $('#e-hent').onclick = async () => {
   const url = $('#e-url').value.trim();
@@ -165,7 +185,8 @@ $('#e-hent').onclick = async () => {
     if (!r.ok) { eMelding(d.feil || 'Klarte ikke hente siden.', true); return; }
     $('#e-sku').value = d.sku; $('#e-navn').value = d.navn;
     $('#e-pris').value = d.pris ? d.pris.replace('.', ',') : '';
-    eBilde = d.bilde_url || '';
+    $('#e-bilde').value = d.bilde_url || ''; visBilde();
+    $('#e-beskrivelse').value = d.beskrivelse || '';
     const merk = [];
     if (!d.pris) merk.push('Fant ingen pris (krever siden innlogging?). Fyll inn prisen selv.');
     else if (d.valuta && d.valuta !== 'NOK') merk.push(`Prisen er oppgitt i ${d.valuta}, ikke NOK. Regn om før du legger til.`);
@@ -187,15 +208,18 @@ $('#e-legg').onclick = () => {
   const inkl = document.querySelector('input[name="e-mva"]:checked').value === 'inkl';
   // Samme omregning som serveren gjoer (tjeneste.manuell_produkt) - kun for visning.
   const eks = inkl ? Math.round(pris / (1 + MVA_SATS / 100) * 100) / 100 : pris;
+  const bilde = $('#e-bilde').value.trim();
   leggTil({
     manuell: true, produkt_id: null,
     sku: $('#e-sku').value.trim(), navn, pris: String(pris), inkl_mva: inkl,
-    kilde_url: $('#e-url').value.trim(), bilde_url: eBilde,
+    kilde_url: $('#e-url').value.trim(),
+    bilde_url: /^https?:\/\//i.test(bilde) ? bilde : '',
+    beskrivelse: $('#e-beskrivelse').value.trim(),
     listepris: String(eks), kampanjepris: String(eks), mva_sats: String(MVA_SATS),
     listepris_vis: nf.format(eks),
   });
-  ['#e-url', '#e-sku', '#e-navn', '#e-pris'].forEach(s => $(s).value = '');
-  eBilde = ''; eMelding('');
+  ['#e-url', '#e-sku', '#e-navn', '#e-pris', '#e-bilde', '#e-beskrivelse'].forEach(s => $(s).value = '');
+  visBilde(); eMelding('');
 };
 
 function nettopris(l) {
@@ -416,7 +440,9 @@ $('#lagre').onclick = async () => {
       linjer: linjer.map(l => ({
         produkt_id: l.produkt_id, antall: parseInt(l.antall) || 1,
         manuell: l.manuell ? {sku: l.sku, navn: l.navn, pris: l.pris,
-                              inkl_mva: l.inkl_mva, kilde_url: l.kilde_url} : null,
+                              inkl_mva: l.inkl_mva, kilde_url: l.kilde_url,
+                              kilde_bilde_url: l.bilde_url,
+                              kilde_beskrivelse: l.beskrivelse} : null,
         rabatt_prosent: l.modus === 'prosent'  ? l.rabatt   : null,
         fastpris:       l.modus === 'fastpris' ? l.fastpris : null,
       })),

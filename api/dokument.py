@@ -64,8 +64,16 @@ def _bilde(doc: DocxTemplate, l: Dict):
     Bildet hentes fra `l["bilde"]`, som ble fryst da tilbudet ble laget - ikke
     slatt opp i katalogen na. Er bildet byttet ut i butikken i mellomtiden,
     viser en regenerering fortsatt det kunden fikk se.
+
+    Varer utenfor nettbutikken har i stedet `kilde_bilde_url`, lastet ned og
+    fryst i bildecachen da tilbudet ble laget (bilder.hent_ekstern).
     """
     sti = _trygg_miniatyr(l.get("bilde"))
+    if not sti and l.get("kilde_bilde_url"):
+        try:
+            sti = bilder.ekstern_miniatyr(l["kilde_bilde_url"])
+        except Exception:
+            sti = None
     if not sti:
         return ""
     return InlineImage(doc, sti, width=BILDEBREDDE)

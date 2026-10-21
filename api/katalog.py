@@ -163,6 +163,46 @@ def dataark(produkt_ids: List[int]) -> Dict[int, Dict[str, str]]:
     return ut
 
 
+def eksportfakta(produkt_ids: List[int]) -> Dict[int, Dict]:
+    """
+    Det Excel-eksporten trenger utover tilbudslinja (api/eksport.py):
+    {produkt_id: {slug, kategori, storrelser: [...], farger: [...]}}.
+
+    Størrelser og farger fra aktive varianter, i variantenes rekkefølge.
+    Fargen er `color_group` («Gul», «Oransje»), ikke leverandørens fargenavn
+    («Safety Yellow»). Slås opp nå, som databladene: det er produktfakta,
+    ikke en del av prisforpliktelsen.
+    """
+    if not produkt_ids:
+        return {}
+    plassholdere = ",".join(["%s"] * len(produkt_ids))
+    ut: Dict[int, Dict] = {}
+    conn = katalog_db()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            f"""SELECT p.id, p.slug, c.name AS kategori
+                  FROM products p LEFT JOIN categories c ON c.id = p.category_id
+                 WHERE p.id IN ({plassholdere})""", tuple(produkt_ids))
+        for r in cur.fetchall():
+            ut[r["id"]] = {"slug": r["slug"], "kategori": r["kategori"] or "",
+                           "storrelser": [], "farger": []}
+        cur.execute(
+            f"""SELECT product_id, size, color_group FROM product_variants
+                 WHERE product_id IN ({plassholdere}) AND is_active = 1
+                 ORDER BY product_id, sort_order, id""", tuple(produkt_ids))
+        for r in cur.fetchall():
+            f = ut.get(r["product_id"])
+            if not f:
+                continue
+            for felt, verdi in (("storrelser", r["size"]), ("farger", r["color_group"])):
+                if verdi and verdi not in f[felt]:
+                    f[felt].append(verdi)
+    finally:
+        conn.close()
+    return ut
+
+
 def hent(produkt_id: int) -> Optional[Dict]:
     """Ett produkt, samme form som sok(). Brukes når en linje legges til."""
     conn = katalog_db()
