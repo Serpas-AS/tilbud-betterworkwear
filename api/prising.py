@@ -2,7 +2,7 @@
 Prisberegning for en tilbudslinje.
 
 Alle belop her er EKS mva. Katalogen leverer allerede eks. mva fra
-api/katalog.py, som regner ned fra Magentos inkl.-mva-priser.
+api/katalog.py, som regner ned fra katalogens inkl.-mva-priser.
 
 Reglene, avklart 31.08.2026:
 

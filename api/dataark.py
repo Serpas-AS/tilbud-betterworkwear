@@ -2,8 +2,8 @@
 Produktdatablad bakerst i tilbudsdokumentet.
 
 Ett ark per vare, etter selve tilbudet, med sideskift foran hvert. Innholdet
-hentes fra Magento-katalogen: beskrivelse, teknisk beskrivelse, vaskeanvisning,
-EAN og bilde.
+hentes fra nettbutikkens katalog (`bww_web`, via katalog.dataark()): beskrivelse,
+teknisk beskrivelse, vaskeanvisning, EAN og bilde.
 
 Dette bygges i kode og ikke i .docx-malen, i motsetning til resten av
 dokumentet. Grunnen er at antall ark og antall avsnitt varierer per tilbud, og
@@ -16,7 +16,7 @@ MVA: prisene som skrives her tas fra den FROSNE tilbudslinja, med samme
 etikett som i pristabellen. Google Apps Scriptet som denne tjenesten avloser
 gjorde nettopp ikke det - det skrev `price_incl_tax` under overskriften
 "Pris eks. mva", saa samme vare sto til to ulike priser i samme dokument.
-Se CLAUDE.md §4 i /var/www/bww.
+Se «Det viktigste å forstå: mva» i NOTAT.md.
 """
 import html as htmllib
 import re
@@ -56,7 +56,7 @@ _TOMME_LINJER = re.compile(r"\n{3,}")
 
 
 def vask(rå: str) -> str:
-    """HTML fra Magento til lesbar tekst. Tom streng hvis ingenting blir igjen."""
+    """HTML fra katalogen til lesbar tekst. Tom streng hvis ingenting blir igjen."""
     if not rå:
         return ""
     t = _MED_INNHOLD.sub(" ", rå)

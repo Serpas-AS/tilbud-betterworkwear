@@ -82,9 +82,9 @@ Møtet hos BWW 01.09 kan gi tilbakemeldinger på oppsettet — da tas de her.
 
 ### Løse tråder som ikke haster
 
-- Magento sender ordrebekreftelser fra `kundeservice@email.betterworkwear.no`,
-  men det domenet finnes **ikke** i Mailgun-kontoen (404 ved oppslag 31.08).
-  Kun `betterworkwear.no` er verifisert. Ikke rørt — det er butikkens ordre-e-post.
+- ~~Magento sender ordrebekreftelser fra `kundeservice@email.betterworkwear.no`,
+  som ikke finnes i Mailgun.~~ Utgår med Magento: ny.betterworkwear.no sender
+  via Mailgun-API-et på det verifiserte domenet `betterworkwear.no`.
 - **Uavklart i prislogikken:** rabatten regnes av `final_price` (dagens faktiske
   pris), ikke av listepris, og avrundes per linje. Bevisste valg, ikke bekreftet
   av Morten. Se `api/prising.py`. Merk at UI-et *viser* avviket fra veil. pris,
@@ -148,6 +148,12 @@ Feltene kan også fylles ut helt for hånd.
 
 ## Endret 01.09.2026
 
+> **Historikk fra Magento-tiden.** Det som står her om `visibility`,
+> `catalog_product_super_link`, `pub/media` og antall produkter gjaldt
+> Magento-katalogen (`bbw`). Fra 03.10.2026 leses `bww_web` - se docstringen
+> i `api/katalog.py`. Prinsippene (plagg, ikke størrelser; frosne priser og
+> bilder; egne miniatyrer) gjelder fortsatt.
+
 **Søket viser ikke lenger størrelsesvarianter.** Et tilbud gis på plagget, ikke
 på «str. L». `api/katalog.sok()` filtrerer nå på `visibility <> 1`
 (Not Visible Individually) og dropper i tillegg alt som er barn i
@@ -166,7 +172,8 @@ skal fortsatt kunne åpnes.
 **Produktbilder, i UI-et og i dokumentet.** Miniatyr i søketreffene (44 px),
 i varelinjene (40 px) og i Varenr.-kolonnen i Word-dokumentet (18 mm).
 
-Bildene ligger på samme server, `/var/www/bww/pub/media/catalog/product`, og
+Bildene ligger på samme server (til 03.10.2026 `/var/www/bww/pub/media/catalog/product`,
+nå `/var/www/ny.betterworkwear.no/data/media/catalog/product`), og
 leses rett fra disk — ingen HTTP-kall. Nettleseren får en vanlig URL mot
 butikken; dokumentet får en fil.
 
@@ -286,8 +293,8 @@ eks.-tallet i søketreff, i Veil.-kolonnen, i Linjesum og på «Sum før rabatt�
 Satsen tas fra produktets `mva_sats`, som nå følger med i `/api/sok`. **Den
 manglet før** — nettleseren regnet med en hardkodet 25 %. Serveren regnet
 riktig uansett, så lagrede tilbud har alltid vært korrekte, men skjermen ville
-løyet for et produkt i en annen tax class. Se CLAUDE.md §4 i `/var/www/bww`:
-hardkodet mva er en felle butikken har gått i to ganger.
+løyet for et produkt i en annen tax class. Hardkodet mva er en felle butikken
+har gått i to ganger - se «Det viktigste å forstå: mva» under.
 
 **Fallgruve verdt å huske: `textContent` sletter barn.** Inkl.-tallet lå først
 som et `<span id="sum-veil-inkl">` INNE i `<td id="sum-veil">`. Da
@@ -336,38 +343,47 @@ kunde. Word og ikke PDF nettopp fordi det siste steget krever redigering.
 | | |
 |---|---|
 | Kode | `/var/www/tilbud.betterworkwear.no` |
-| Tjeneste | `tilbud.service`, `www-data`, uvicorn på `127.0.0.1:8002` |
+| Tjeneste | `tilbud.service`, bruker `tilbudweb`, uvicorn på `127.0.0.1:8002`, systemd-sandkasse |
 | nginx | proxy_pass, TLS via certbot (fornyes automatisk) |
 | Database | `tilbud` |
-| DB-bruker | `tilbud@localhost` — `SELECT` på `bbw`, `ALL` på `tilbud` |
+| DB-bruker | `tilbud@localhost` — `ALL` på `tilbud`; `SELECT` på `bww_web.products`, `product_variants`, `product_images` og `categories`. Ingen tilgang til `bbw` (Magento). |
+| Git | `origin` = `Serpas-AS/tilbud-betterworkwear` (privat), via SSH-aliaset `github-tilbud` og deploy-nøkkelen `~/.ssh/id_ed25519_tilbud` |
 | Hemmeligheter | `.env` (`600 root:root`), lest av systemd |
 
 `python-docx`, `docxtpl`, `mysql-connector-python`, `fastapi`, `uvicorn`,
-`jinja2`, `itsdangerous`, `requests` i `venv/`.
+`jinja2`, `itsdangerous`, `requests`, `pillow`, `lxml`, `urllib3`, `openpyxl` i
+`venv/`. Fasit: `requirements.txt`.
 
 ## Det viktigste å forstå: mva
 
-BWW lagrer katalogpriser **inkl. 25 % mva** (`tax/calculation/price_includes_tax = 1`).
-Tilbud vises **eks. mva**. `api/katalog.py` regner ned, og satsen slås opp fra
-produktets `tax_class_id` — **ikke** hardkodet.
+BWW lagrer katalogpriser **inkl. 25 % mva** i `bww_web`, og nettbutikken er ren
+B2C med priser inkl. mva. Tilbud vises **eks. mva**. `api/katalog.py` regner ned.
+`bww_web` har ingen mva-klasser, så satsen er én verdi - men den leses fra
+`KATALOG_MVA_SATS` (standard 25) og følger med hvert produkt som `mva_sats`,
+den står **ikke** som `/ 1.25` i regnestykkene. Varer utenfor nettbutikken
+regnes om med samme sats.
 
-Butikken er brent på hardkodet `/ 1.25` to ganger: `Serpas_CmsProductBox` viste
-799 kr der kunden ble belastet 999, og `Serpas_PrebuiltCart` hadde samme feil.
-Begge ble fjernet 31.08.2026. Ikke gjeninnfør mønsteret her.
+Butikken er brent på hardkodet `/ 1.25` to ganger i Magento-tiden:
+`Serpas_CmsProductBox` delte `getFinalPrice()` på 1,25 og skrev «eks. mva» som
+ren tekst, så kunder så **799 kr** på en salgsside og ble belastet **999 kr**;
+`Serpas_PrebuiltCart` hadde samme mønster. Begge ble fjernet 31.08.2026. Ikke
+gjeninnfør mønsteret her: kode som regner mva selv, utenom ett sted med
+konfigurert sats, kommer før eller siden i utakt.
+
+**Norsk B2B-salg skal ha 25 % mva.** Bedriftskunden trekker fra inngående mva
+selv. Nullsats gjelder eksport og reverse charge, ikke innenlands firmasalg.
+At tilbudet vises eks. mva er visning, ikke fritak - summene har alltid mva.
 
 ## Fallgruver som allerede er håndtert
 
-**Konfigurerbare produkter har `price = 0` i prisindeksen.** Den ekte prisen
-ligger i variantene. 389 av 4511 produkter er konfigurerbare — nettopp plaggene
-med størrelser. Leser man bare `price`, får selgeren 0,00 og gir varen bort.
-`api/katalog.py` henter derfor pris fra `catalog_product_super_link`, batchet.
+**Konfigurerbare produkter har prisen i variantene.** Plaggene med størrelser
+er `type = 'configurable'` i `bww_web.products`, og den ekte prisen ligger i
+`product_variants`. `api/katalog.py` bruker høyeste aktive variantpris som veil.
+pris og laveste som kampanjepris (samme regel som Magento-versjonen). Leser man
+bare `products.price`, kan selgeren få 0,00 og gi varen bort.
 
-**Rå EAV-lesing omgår all prislogikk.** Vi leser `catalog_product_index_price`,
-Magentos egen ferdigberegnede pris med katalogregler og kampanjer innbakt.
-`puls.wrks.no` leser rå EAV — ikke kopier det.
-
-**Attributt-ID-er er installasjonsspesifikke.** Slås opp fra `eav_attribute`
-på kode. `puls` hardkoder BWWs ID-er og bruker dem mot sju databaser.
+(Magento-tidens fallgruver - `price = 0` i prisindeksen, rå EAV-lesing og
+installasjonsspesifikke attributt-ID-er - utgikk med byttet 03.10.2026.)
 
 **Enten rabatt eller fastpris.** Håndhevet i `api/prising.py`, ikke bare i
 skjemaet. Nettleseren er ikke sannhetskilde når det gjelder priser.
@@ -382,13 +398,13 @@ fastpris er satt eksplisitt.
 ## Hvorfor `.env` er `600 root:root`
 
 `systemd` leser `EnvironmentFile=` som **root**, før den slipper ned til
-`User=www-data`. Fila trenger derfor ikke være lesbar for tjenestebrukeren
+`User=tilbudweb`. Fila trenger derfor ikke være lesbar for tjenestebrukeren
 i det hele tatt.
 
-Sto den `640 root:www-data`, kunne **alle ni Magento-butikkenes PHP-FPM**
-lest den — de kjører alle som `www-data`. Med de 14 431 web-shell-forsøkene
-som er dokumentert i `/var/www/bww/CLAUDE.md` §7 er det en reell eksponering
-av databasepassordet og SMTP-passordet.
+Sto den `640 root:www-data`, kunne **alle Magento-butikkenes PHP-FPM** på
+serveren lest den — de kjører som `www-data`. Mars–august 2026 ble det funnet
+**14 431 filer** med web-shell-kode i `/tmp`, skrevet av `www-data`. Det er en
+reell eksponering av databasepassordet og Mailgun-nøkkelen.
 
 Verifisert etter innstrammingen: verken `www-data` eller `magento` kan lese
 fila, og tjenesten slår fortsatt opp brukere i databasen.
@@ -400,9 +416,9 @@ fila, og tjenesten slår fortsatt opp brukere i databasen.
 
 ## E-post
 
-Mailgun **SMTP**, samme oppsett som nettbutikken (Mageplaza_Smtp i
-`/var/www/bww`): `smtp.eu.mailgun.org:465` SSL, bruker
-`postmaster@betterworkwear.no`, avsender på `email.betterworkwear.no`.
+Mailgun, samme konto og domene som nettbutikken (ny.betterworkwear.no bruker
+HTTP-API-et). SMTP-reserven er `smtp.eu.mailgun.org:465` SSL, bruker
+`postmaster@betterworkwear.no`.
 
 Bevisst BWWs eget domene og ikke `wrks.no` som puls bruker: domenet er
 allerede SPF/DKIM-verifisert, så posten havner ikke i søppelpost, og skal
@@ -413,7 +429,7 @@ velger API når `MAILGUN_API_KEY` er satt — ett HTTP-kall er raskere enn et
 SMTP-håndtrykk med TLS, og feiler tydeligere.
 
 **Det verifiserte Mailgun-domenet er `betterworkwear.no`.** Ikke
-`email.betterworkwear.no`, som Magento bruker som avsenderadresse — det
+`email.betterworkwear.no`, som Magento brukte som avsenderadresse — det
 domenet finnes ikke i Mailgun-kontoen (verifisert 31.08.2026, gir 404).
 Avsender her er derfor `tilbud@betterworkwear.no`.
 

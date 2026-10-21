@@ -253,10 +253,10 @@ function linjetall(l) {
     antall, netto, veil, kamp, sats,
     bruttosum, linjesum, rabatt,
     frakampanje: Math.max(0, (veil - kamp)) * antall,
-    // Katalogprisene er lagret inkl. mva i Magento og regnet ned til eks. mva
+    // Katalogprisene er lagret inkl. mva i bww_web og regnet ned til eks. mva
     // i api/katalog.py. Her regnes de opp igjen for visning, med produktets
-    // egen sats - ikke en hardkodet 1,25. Se CLAUDE.md §4 i /var/www/bww for
-    // hvorfor det siste er en felle butikken har gaatt i to ganger.
+    // egen sats - ikke en hardkodet 1,25. Se «Det viktigste å forstå: mva» i
+    // NOTAT.md for hvorfor det siste er en felle butikken har gaatt i to ganger.
     veilInkl:      medMva(veil, sats),
     nettoInkl:     medMva(netto, sats),
     bruttosumInkl: medMva(bruttosum, sats),

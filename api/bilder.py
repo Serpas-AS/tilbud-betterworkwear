@@ -2,8 +2,8 @@
 Produktbilder fra BWW-katalogen.
 
 Bildene ligger på SAMME server som denne tjenesten, under
-`/var/www/ny.betterworkwear.no/data/media/catalog/product` (nettbutikken; samme
-stier som Magentos `pub/media`, WRKS-plagg under `wrks/`). De leses derfor rett fra disk -
+`/var/www/ny.betterworkwear.no/data/media/catalog/product` (nettbutikken; stiene
+er arvet fra Magento, WRKS-plagg under `wrks/`). De leses derfor rett fra disk -
 ingen HTTP-kall, ingen autentisering, ingen ekstern avhengighet. Google
 Apps Scriptet som denne tjenesten avløser måtte hente hvert bilde over
 nett med `UrlFetchApp`; det slipper vi.
@@ -15,12 +15,11 @@ To ulike behov, to ulike veier:
 * WORD-DOKUMENTET får en fil fra disk (`miniatyr`), fordi docxtpl bygger
   bildet inn i .docx-en.
 
-Hvorfor vi lager egne miniatyrer og ikke bruker Magentos cache i
-`pub/media/catalog/product/cache/<hash>/`: hash-katalogene er utledet av
-bildekonfigurasjonen i temaet, de skifter navn når konfigurasjonen endres,
-og `catalog:images:resize` eller en opprydding kan tømme dem når som helst.
-Et tilbud som plutselig mangler bilder fordi noen kjørte en cache-kommando
-i butikken er ikke akseptabelt.
+Hvorfor vi lager egne miniatyrer og ikke bruker butikkens skalerte
+varianter: de styres av butikkens bildeoppsett, kan skifte navn når det
+endres, og kan tømmes når som helst. (Magento-butikken hadde nettopp det
+problemet med `pub/media/catalog/product/cache/<hash>/`.) Et tilbud som
+plutselig mangler bilder fordi noen ryddet i butikken er ikke akseptabelt.
 
 Størrelsen er ikke kosmetikk. Originalene er PNG på 100-200 KB. Et tilbud
 med 43 varelinjer ville blitt et Word-dokument på 7 MB, altså for stort for
@@ -48,7 +47,8 @@ MAKS_EKSTERN = 15 * 1024 * 1024   # leverandørbilder er ofte store originaler (
 
 
 def _rel(sti: Optional[str]) -> Optional[str]:
-    """Normaliserer Magentos lagrede verdi. 'no_selection' betyr intet bilde."""
+    """Normaliserer en lagret bildesti. 'no_selection' (Magentos «intet bilde») vernes
+    fortsatt mot, i tilfelle gamle data dukker opp - ingen rader har det per 21.10.2026."""
     if not sti or sti == "no_selection":
         return None
     return sti.lstrip("/")

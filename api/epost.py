@@ -1,13 +1,13 @@
 """
-E-postutsending via Mailgun SMTP - samme oppsett som nettbutikken.
+E-postutsending via Mailgun - samme konto og domene som nettbutikken.
 
 Bruker BWWs eget avsenderdomene, ikke wrks.no. Domenet er allerede
 SPF/DKIM-verifisert for betterworkwear.no, sa e-posten havner ikke i
 soppelpost, og skal tilbudet en dag ga rett til kunde, star det riktig
 avsender pa det.
 
-Konfigurasjonen speiler Magentos egen (Mageplaza_Smtp i /var/www/bww):
-  smtp.eu.mailgun.org:465 (SSL), bruker postmaster@betterworkwear.no
+HTTP-API-et brukes når MAILGUN_API_KEY er satt, som i ny.betterworkwear.no.
+SMTP-reserven: smtp.eu.mailgun.org:465 (SSL), bruker postmaster@betterworkwear.no
 
 Alle verdier leses fra miljoet. Ingen hemmeligheter i kode - puls.wrks.no har
 Mailgun-nokkelen hardkodet i api/routes/auth.py, og da folger den med hver
