@@ -19,6 +19,11 @@
       <tr>
         <td>{{ l.sku }}</td>
         <td>{{ l.navn }}
+          {% if not l.produkt_id and not l.magento_id %}
+            <span class="merkelapp m-generert">utenfor nettbutikken</span>
+            {% if l.kilde_url %}<br><a href="{{ l.kilde_url }}" target="_blank" rel="noopener noreferrer"
+               style="font-size:.85rem">Leverandørens side</a>{% endif %}
+          {% endif %}
           {% if l.rabatt_type == "prosent" %}
             <br><span style="color:#6b7280;font-size:.85rem">{{ l.rabatt_prosent|prosent }} % rabatt</span>
           {% elif l.rabatt_type == "fastpris" %}

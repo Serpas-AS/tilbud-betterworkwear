@@ -20,8 +20,9 @@ from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
+from starlette.concurrency import run_in_threadpool
 
-from api import bilder, katalog, epost, tjeneste
+from api import bilder, ekstern, katalog, epost, tjeneste
 from api.db import tilbud_db
 from api.dokument import kr
 from api.prising import PrisFeil
@@ -196,7 +197,8 @@ async def nytt_skjema(request: Request):
     bruker = innlogget(request)
     if not bruker:
         return RedirectResponse("/login", status_code=303)
-    return templates.TemplateResponse(request, "nytt.html", {"request": request, "bruker": bruker})
+    return templates.TemplateResponse(request, "nytt.html", {
+        "request": request, "bruker": bruker, "mva_sats": katalog.MVA_SATS})
 
 
 @app.get("/api/sok")
@@ -215,6 +217,26 @@ async def api_sok(request: Request, q: str = ""):
         # Nettleseren far en vanlig URL mot butikken - se api/bilder.py.
         "bilde_url": bilder.bilde_url(p["bilde"]),
     } for p in katalog.sok(q)])
+
+
+@app.post("/api/hent-url")
+async def api_hent_url(request: Request):
+    """Forslag til SKU, navn og pris fra en produktside utenfor nettbutikken.
+
+    POST og ikke GET, slik at samme-opphav-sjekken over gjelder: en annen side
+    skal ikke kunne få tjenesten til å hente adresser i selgerens navn."""
+    _krev(request)
+    data = await request.json()
+    url = str(data.get("url") or "")
+    try:
+        # Blokkerende nettverkskall - kjøres i en tråd så resten av tjenesten ikke venter.
+        return JSONResponse(await run_in_threadpool(ekstern.hent_produkt, url))
+    except ekstern.HentFeil as e:
+        return JSONResponse({"feil": str(e)}, status_code=400)
+    except Exception:
+        logger.exception("Uventet feil ved henting av %s", url)
+        return JSONResponse({"feil": "Klarte ikke lese siden. Fyll inn feltene selv."},
+                            status_code=400)
 
 
 def _des(v) -> Optional[Decimal]:
@@ -240,8 +262,15 @@ async def opprett(request: Request):
             return JSONResponse(
                 {"feil": "Sett enten rabatt eller fastpris på en linje, ikke begge."},
                 status_code=400)
+        manuell = None
+        if v.get("manuell"):
+            m = v["manuell"]
+            manuell = {"sku": str(m.get("sku") or ""), "navn": str(m.get("navn") or ""),
+                       "pris": _des(m.get("pris")), "inkl_mva": bool(m.get("inkl_mva")),
+                       "kilde_url": str(m.get("kilde_url") or "")}
         linjer.append({
-            "produkt_id": v["produkt_id"],
+            "produkt_id": v.get("produkt_id"),
+            "manuell": manuell,
             "antall": v.get("antall", 1),
             "rabatt_type": ("prosent" if rabatt is not None
                             else "fastpris" if fast is not None else "ingen"),

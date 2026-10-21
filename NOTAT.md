@@ -93,6 +93,29 @@ Møtet hos BWW 01.09 kan gi tilbakemeldinger på oppsettet — da tas de her.
 
 ---
 
+## Endret 21.10.2026: varer utenfor nettbutikken
+
+Selgerne gir også tilbud på varer som ikke finnes i `bww_web`. Under
+«Vare som ikke er i nettbutikken» i skjemaet limer de inn lenken til
+produktsiden. `api/ekstern.py` foreslår da varenummer, navn og pris fra
+JSON-LD og meta-tagger, og selgeren retter feltene før varen legges til.
+Feltene kan også fylles ut helt for hånd.
+
+- Det er prisen **selgeren godkjenner** som lagres, ikke det som ble hentet.
+  Prisen oppgis inkl. eller eks. mva, og regnes om med `KATALOG_MVA_SATS`.
+- **Ingen innlogging:** priser som bare vises for innloggede kunder
+  (leverandørportaler) kan ikke hentes. Da kommer navn og varenummer, men
+  ikke pris.
+- Mange store butikker (Biltema, Shopify-butikker bak Cloudflare o.l.) avviser
+  oppslag fra serverens IP-adresse med 403/429. Selgeren får beskjed og fyller
+  ut selv. Det hjelper ikke å late som man er en nettleser - prøvd.
+- Linja lagres med `produkt_id = NULL` og ny kolonne `tilbud_linje.kilde_url`.
+  Den får ingen bilde i dokumentet og intet produktdatablad.
+- **SSRF-vern** i `api/ekstern.py`: bare http/https på port 80/443, alle
+  DNS-svar må være offentlige adresser, tilkoblingen går til den sjekkede
+  IP-en (vern mot DNS rebinding), og hver omdirigering sjekkes på nytt.
+  Endepunktet er POST, så samme-opphav-sjekken gjelder.
+
 ## Endret 01.09.2026
 
 **Søket viser ikke lenger størrelsesvarianter.** Et tilbud gis på plagget, ikke

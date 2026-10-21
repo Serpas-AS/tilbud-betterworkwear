@@ -121,13 +121,16 @@ def legg_til(doc, linjer: List[Dict], fakta: Dict[int, Dict[str, str]], kr) -> i
     i pristabellen. Returnerer antall ark som ble skrevet.
 
     Samme vare to ganger i tilbudet gir ett ark, ikke to.
+
+    Varer utenfor nettbutikken (uten `produkt_id`) får ikke ark: vi har ingen
+    beskrivelse eller vaskeanvisning for dem, bare det som står i pristabellen.
     """
     sett = set()
     antall = 0
 
     for l in linjer:
         mid = l.get("produkt_id")
-        if mid in sett:
+        if not mid or mid in sett:
             continue
         sett.add(mid)
 

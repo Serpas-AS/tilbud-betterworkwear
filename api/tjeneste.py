@@ -31,22 +31,59 @@ def _neste_tilbudsnr(cur) -> str:
     return f"T-{aar}-{neste:04d}"
 
 
+def manuell_produkt(m: Dict) -> Dict:
+    """
+    En vare som ikke er i nettbutikken, i samme form som katalog.hent().
+
+    m: {sku, navn, pris (Decimal), inkl_mva (bool), kilde_url}. Prisen er det
+    selgeren godkjente i skjemaet - eventuelt hentet fra leverandørens side
+    av api/ekstern.py, men rettet av selgeren. Den regnes om til eks. mva her,
+    med samme sats og avrunding som katalogen, og er både veil. pris og
+    utgangspunkt for rabatt (det finnes ingen kampanjepris).
+    """
+    navn = (m.get("navn") or "").strip()
+    sku = (m.get("sku") or "").strip()
+    kilde = (m.get("kilde_url") or "").strip()
+    pris = m.get("pris")
+    if not navn:
+        raise PrisFeil("En vare utenfor nettbutikken må ha et navn.")
+    if len(navn) > 255 or len(sku) > 64:
+        raise PrisFeil(f"Navnet eller varenummeret til «{navn[:40]}» er for langt.")
+    if pris is None or pris <= 0:
+        raise PrisFeil(f"«{navn}» mangler pris.")
+    # Lenken vises som klikkbar på tilbudssiden - bare http(s), aldri javascript: o.l.
+    if kilde and (not kilde.lower().startswith(("https://", "http://")) or len(kilde) > 500):
+        kilde = ""
+    eks = pris if not m.get("inkl_mva") else katalog._eks_mva(pris, katalog.MVA_SATS)
+    eks = katalog._q2(eks)
+    return {
+        "produkt_id": None, "sku": sku, "navn": navn, "bilde": None,
+        "listepris": eks, "kampanjepris": eks, "mva_sats": katalog.MVA_SATS,
+        "kilde_url": kilde or None,
+    }
+
+
 def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
                    notat: str = "") -> Dict:
     """
-    varelinjer: [{produkt_id, antall, rabatt_type, rabatt_prosent, fastpris}, ...]
+    varelinjer: [{produkt_id | manuell, antall, rabatt_type, rabatt_prosent, fastpris}, ...]
 
     Prisene slas opp fra katalogen HER, ikke i nettleseren - det som sendes inn
     fra skjemaet er kun produktvalg og rabatt. Deretter fryses resultatet.
+    Unntaket er varer utenfor nettbutikken (`manuell`), der selgeren selv
+    oppgir prisen - se manuell_produkt().
     """
     if not varelinjer:
         raise PrisFeil("Tilbudet må inneholde minst én vare.")
 
     beregnede = []
     for v in varelinjer:
-        produkt = katalog.hent(int(v["produkt_id"]))
-        if not produkt:
-            raise PrisFeil(f"Fant ikke produkt {v['produkt_id']} i katalogen.")
+        if v.get("manuell"):
+            produkt = manuell_produkt(v["manuell"])
+        else:
+            produkt = katalog.hent(int(v["produkt_id"]))
+            if not produkt:
+                raise PrisFeil(f"Fant ikke produkt {v['produkt_id']} i katalogen.")
         beregnede.append(beregn_linje(
             produkt,
             antall=v.get("antall", 1),
@@ -54,6 +91,7 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
             rabatt_prosent=v.get("rabatt_prosent"),
             fastpris=v.get("fastpris"),
         ))
+        beregnede[-1]["kilde_url"] = produkt.get("kilde_url")
 
     totaler = summer(beregnede)
 
@@ -77,13 +115,13 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
                 """INSERT INTO tilbud_linje
                    (tilbud_id,sort_order,produkt_id,sku,navn,bilde,antall,listepris,
                     kampanjepris,rabatt_type,rabatt_prosent,fastpris,nettopris,
-                    linjesum,mva_sats)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    linjesum,mva_sats,kilde_url)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (tilbud_id, i, l["produkt_id"], l["sku"], l["navn"],
                  l.get("bilde"), l["antall"],
                  l["listepris"], l["kampanjepris"], l["rabatt_type"],
                  l["rabatt_prosent"], l["fastpris"], l["nettopris"],
-                 l["linjesum"], l["mva_sats"]),
+                 l["linjesum"], l["mva_sats"], l.get("kilde_url")),
             )
 
         cur.execute("SELECT * FROM tilbud WHERE id=%s", (tilbud_id,))

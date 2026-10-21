@@ -7,6 +7,33 @@
   <label>Legg til vare</label>
   <input id="sok" placeholder="Søk på varenummer eller navn — minst 2 tegn" autocomplete="off">
   <div id="treff" style="margin-top:.5rem"></div>
+
+  <details id="ekstern" style="margin-top:1rem;border-top:1px solid #eee;padding-top:.75rem">
+    <summary style="cursor:pointer;font-weight:600">Vare som ikke er i nettbutikken</summary>
+    <p style="color:#6b7280;font-size:.85rem;margin:.5rem 0">
+      Lim inn lenken til produktsiden og trykk «Hent». Varenummer, navn og pris
+      foreslås, og du retter dem før varen legges til. Du kan også fylle ut feltene
+      selv. Priser som bare vises for innloggede kunder kan ikke hentes.</p>
+    <div style="display:flex;gap:.5rem">
+      <input id="e-url" type="url" placeholder="https://…" style="flex:1">
+      <button class="knapp sekundaer" id="e-hent" type="button">Hent</button>
+    </div>
+    <div id="e-melding" style="font-size:.85rem;margin:.4rem 0;color:#6b7280"></div>
+    <div class="rad rad-2">
+      <div><label for="e-sku">Varenummer</label><input id="e-sku" maxlength="64"></div>
+      <div><label for="e-navn">Navn</label><input id="e-navn" maxlength="255"></div>
+    </div>
+    <div class="rad rad-2">
+      <div><label for="e-pris">Pris</label>
+        <input id="e-pris" inputmode="decimal" placeholder="0,00"></div>
+      <div><label>Prisen er</label>
+        <label style="font-weight:400;color:#111;display:inline-flex;gap:.3rem;align-items:center;margin-right:1rem">
+          <input type="radio" name="e-mva" value="inkl" checked style="width:auto"> inkl. mva</label>
+        <label style="font-weight:400;color:#111;display:inline-flex;gap:.3rem;align-items:center">
+          <input type="radio" name="e-mva" value="eks" style="width:auto"> eks. mva</label></div>
+    </div>
+    <button class="knapp" id="e-legg" type="button">Legg til i tilbudet</button>
+  </details>
 </div>
 
 <div class="kort">
@@ -111,6 +138,61 @@ function leggTil(p) {
   tegn();
 }
 
+// ---- Vare utenfor nettbutikken (api/ekstern.py). Det som hentes er bare et
+// forslag; det er feltene slik selgeren lar dem staa som sendes til serveren.
+const MVA_SATS = {{ mva_sats }};
+const eMelding = (tekst, feil) => {
+  $('#e-melding').textContent = tekst;
+  $('#e-melding').style.color = feil ? '#b91c1c' : '#6b7280';
+};
+let eBilde = '';
+
+$('#e-hent').onclick = async () => {
+  const url = $('#e-url').value.trim();
+  if (!url) { eMelding('Lim inn en lenke først.', true); return; }
+  $('#e-hent').disabled = true; eMelding('Henter …');
+  try {
+    const r = await fetch('/api/hent-url', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url}),
+    });
+    const d = await r.json();
+    if (!r.ok) { eMelding(d.feil || 'Klarte ikke hente siden.', true); return; }
+    $('#e-sku').value = d.sku; $('#e-navn').value = d.navn;
+    $('#e-pris').value = d.pris ? d.pris.replace('.', ',') : '';
+    eBilde = d.bilde_url || '';
+    const merk = [];
+    if (!d.pris) merk.push('Fant ingen pris (krever siden innlogging?). Fyll inn prisen selv.');
+    else if (d.valuta && d.valuta !== 'NOK') merk.push(`Prisen er oppgitt i ${d.valuta}, ikke NOK. Regn om før du legger til.`);
+    else merk.push('Sjekk feltene, og om prisen på siden er inkl. eller eks. mva.');
+    if (!d.sku) merk.push('Fant ikke varenummer.');
+    eMelding(merk.join(' '), !d.pris || (d.valuta && d.valuta !== 'NOK'));
+  } catch (e) {
+    eMelding('Klarte ikke hente siden.', true);
+  } finally {
+    $('#e-hent').disabled = false;
+  }
+};
+
+$('#e-legg').onclick = () => {
+  const navn = $('#e-navn').value.trim();
+  const pris = parseFloat($('#e-pris').value.replace(/\s/g, '').replace(',', '.'));
+  if (!navn) { eMelding('Varen må ha et navn.', true); return; }
+  if (!(pris > 0)) { eMelding('Fyll inn en gyldig pris.', true); return; }
+  const inkl = document.querySelector('input[name="e-mva"]:checked').value === 'inkl';
+  // Samme omregning som serveren gjoer (tjeneste.manuell_produkt) - kun for visning.
+  const eks = inkl ? Math.round(pris / (1 + MVA_SATS / 100) * 100) / 100 : pris;
+  leggTil({
+    manuell: true, produkt_id: null,
+    sku: $('#e-sku').value.trim(), navn, pris: String(pris), inkl_mva: inkl,
+    kilde_url: $('#e-url').value.trim(), bilde_url: eBilde,
+    listepris: String(eks), kampanjepris: String(eks), mva_sats: String(MVA_SATS),
+    listepris_vis: nf.format(eks),
+  });
+  ['#e-url', '#e-sku', '#e-navn', '#e-pris'].forEach(s => $(s).value = '');
+  eBilde = ''; eMelding('');
+};
+
 function nettopris(l) {
   const k = parseFloat(l.kampanjepris);
   if (l.modus === 'prosent' && l.rabatt !== '') {
@@ -207,6 +289,7 @@ function tegn() {
             : ''}
           <div style="min-width:0">
             <strong>${esc(l.sku)}</strong><br><span style="color:#6b7280">${esc(l.navn)}</span>
+            ${l.manuell ? '<br><span class="merkelapp m-generert">utenfor nettbutikken</span>' : ''}
           </div>
         </div>
       </td>
@@ -327,6 +410,8 @@ $('#lagre').onclick = async () => {
       notat: $('#notat').value,
       linjer: linjer.map(l => ({
         produkt_id: l.produkt_id, antall: parseInt(l.antall) || 1,
+        manuell: l.manuell ? {sku: l.sku, navn: l.navn, pris: l.pris,
+                              inkl_mva: l.inkl_mva, kilde_url: l.kilde_url} : null,
         rabatt_prosent: l.modus === 'prosent'  ? l.rabatt   : null,
         fastpris:       l.modus === 'fastpris' ? l.fastpris : null,
       })),
