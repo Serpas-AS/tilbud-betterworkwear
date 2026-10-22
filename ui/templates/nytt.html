@@ -1,6 +1,19 @@
-{% extends "base.html" %}{% block tittel %}Nytt tilbud{% endblock %}
+{% extends "base.html" %}{% block tittel %}{% if t %}Rediger {{ t.tilbudsnr }}{% else %}Nytt tilbud{% endif %}{% endblock %}
 {% block innhold %}
+{% if t %}
+<h1>Rediger {{ t.tilbudsnr }}</h1>
+<p style="color:#6b7280;margin-top:-.5rem">
+  Varene som allerede står i tilbudet beholder prisene fra {{ t.created_at.strftime("%d.%m.%Y") }}.
+  Varer du legger til nå, får dagens pris. Word-dokumentet lages på nytt når du lagrer.</p>
+{% if t.status == "sendt" %}
+<div style="font-size:.9rem;margin:0 0 1rem;padding:.6rem .75rem;background:#fff8db;
+            border-left:4px solid #ffcf0d;border-radius:4px;color:#111">
+  <strong>Tilbudet er allerede markert som sendt.</strong> Kunden har den forrige versjonen.
+  Husk å sende det oppdaterte dokumentet.</div>
+{% endif %}
+{% else %}
 <h1>Nytt tilbud</h1>
+{% endif %}
 <div id="feil" class="feil" style="display:none"></div>
 
 <div class="kort">
@@ -92,21 +105,22 @@
 <div class="kort">
   <label style="font-size:.95rem;color:#111;margin-bottom:.75rem">Kunde</label>
   <div class="rad rad-2">
-    <div><label for="kf">Firma</label><input id="kf"></div>
-    <div><label for="kk">Kontaktperson</label><input id="kk"></div>
+    <div><label for="kf">Firma</label><input id="kf" value="{{ t.kunde_firma if t else '' }}"></div>
+    <div><label for="kk">Kontaktperson</label><input id="kk" value="{{ t.kunde_kontakt if t else '' }}"></div>
   </div>
   <div class="rad rad-2">
-    <div><label for="ke">E-post</label><input id="ke" type="email"></div>
-    <div><label for="kt">Telefon</label><input id="kt"></div>
+    <div><label for="ke">E-post</label><input id="ke" type="email" value="{{ t.kunde_epost if t else '' }}"></div>
+    <div><label for="kt">Telefon</label><input id="kt" value="{{ t.kunde_telefon if t else '' }}"></div>
   </div>
   <div class="rad">
     <div><label for="notat">Notat i tilbudet</label>
-    <textarea id="notat" rows="2" placeholder="F.eks. leveringstid eller forutsetninger"></textarea></div>
+    <textarea id="notat" rows="2" placeholder="F.eks. leveringstid eller forutsetninger">{{ t.notat or "" if t else "" }}</textarea></div>
   </div>
 </div>
 
 <div class="kort">
-  <button class="knapp" id="lagre">Lag tilbud og send til meg</button>
+  <button class="knapp" id="lagre">{{ "Lagre endringer og send til meg" if t else "Lag tilbud og send til meg" }}</button>
+  {% if t %}<a class="knapp sekundaer" href="/tilbud/{{ t.id }}" style="margin-left:.5rem">Avbryt</a>{% endif %}
   <span style="color:#6b7280;margin-left:.75rem">Dokumentet sendes til {{ bruker.email }}</span>
 </div>
 
@@ -114,7 +128,10 @@
 // Katalogdata (navn, SKU, bilde-URL) settes inn i HTML her; escapes så et produktnavn med <img onerror=…>
 // ikke kan kjøre skript hos selgeren (03.10.2026).
 const esc = v => String(v ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
-const linjer = [];
+// Ved redigering: tilbudets lagrede linjer, med linje_id - serveren bruker da de frosne prisene.
+const linjer = {{ (linjer if t else [])|tojson }};
+const LAGRE_URL = {{ ("/tilbud/%d/rediger" % t.id if t else "/nytt")|tojson }};
+const LAGRE_TEKST = {{ ("Lagre endringer og send til meg" if t else "Lag tilbud og send til meg")|tojson }};
 const nf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});
 const $ = s => document.querySelector(s);
 
@@ -430,14 +447,15 @@ function oppdaterSummer() {
 $('#lagre').onclick = async () => {
   const f = $('#feil'); f.style.display = 'none';
   if (!linjer.length) { f.textContent = 'Legg til minst én vare.'; f.style.display='block'; return; }
-  $('#lagre').disabled = true; $('#lagre').textContent = 'Lager tilbud …';
-  const r = await fetch('/nytt', {
+  $('#lagre').disabled = true; $('#lagre').textContent = 'Lagrer tilbud …';
+  const r = await fetch(LAGRE_URL, {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       kunde_firma: $('#kf').value, kunde_kontakt: $('#kk').value,
       kunde_epost: $('#ke').value, kunde_telefon: $('#kt').value,
       notat: $('#notat').value,
       linjer: linjer.map(l => ({
+        linje_id: l.linje_id ?? null,
         produkt_id: l.produkt_id, antall: parseInt(l.antall) || 1,
         manuell: l.manuell ? {sku: l.sku, navn: l.navn, pris: l.pris,
                               inkl_mva: l.inkl_mva, kilde_url: l.kilde_url,
@@ -451,10 +469,11 @@ $('#lagre').onclick = async () => {
   const d = await r.json();
   if (!r.ok) {
     f.textContent = d.feil || 'Noe gikk galt.'; f.style.display = 'block';
-    $('#lagre').disabled = false; $('#lagre').textContent = 'Lag tilbud og send til meg';
+    $('#lagre').disabled = false; $('#lagre').textContent = LAGRE_TEKST;
     return;
   }
   location.href = '/tilbud/' + d.id;
 };
+if (linjer.length) tegn();
 </script>
 {% endblock %}

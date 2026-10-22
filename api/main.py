@@ -248,20 +248,15 @@ def _des(v) -> Optional[Decimal]:
         raise PrisFeil(f"«{v}» er ikke et gyldig tall.")
 
 
-@app.post("/nytt")
-async def opprett(request: Request):
-    bruker = _krev(request)
-    data = await request.json()
-
+def _les_skjema(data: dict) -> dict:
+    """Skjemaets JSON (nytt eller redigert tilbud) til argumenter for tjeneste-laget."""
     linjer = []
     for v in data.get("linjer", []):
         rabatt = _des(v.get("rabatt_prosent"))
         fast = _des(v.get("fastpris"))
         # Enten/eller. Skjemaet hindrer det, men skjemaet er ikke sannhetskilde.
         if rabatt is not None and fast is not None:
-            return JSONResponse(
-                {"feil": "Sett enten rabatt eller fastpris på en linje, ikke begge."},
-                status_code=400)
+            raise PrisFeil("Sett enten rabatt eller fastpris på en linje, ikke begge.")
         manuell = None
         if v.get("manuell"):
             m = v["manuell"]
@@ -271,6 +266,8 @@ async def opprett(request: Request):
                        "kilde_bilde_url": str(m.get("kilde_bilde_url") or ""),
                        "kilde_beskrivelse": str(m.get("kilde_beskrivelse") or "")}
         linjer.append({
+            # Bare ved redigering: en linje som allerede står i tilbudet.
+            "linje_id": v.get("linje_id"),
             "produkt_id": v.get("produkt_id"),
             "manuell": manuell,
             "antall": v.get("antall", 1),
@@ -279,18 +276,68 @@ async def opprett(request: Request):
             "rabatt_prosent": rabatt,
             "fastpris": fast,
         })
+    return {
+        "kunde": {"firma": data.get("kunde_firma",""), "kontakt": data.get("kunde_kontakt",""),
+                  "epost": data.get("kunde_epost",""), "telefon": data.get("kunde_telefon","")},
+        "varelinjer": linjer,
+        "notat": data.get("notat",""),
+    }
 
+
+@app.post("/nytt")
+async def opprett(request: Request):
+    bruker = _krev(request)
+    data = await request.json()
     try:
-        t = tjeneste.opprett_tilbud(
-            bruker,
-            kunde={"firma": data.get("kunde_firma",""), "kontakt": data.get("kunde_kontakt",""),
-                   "epost": data.get("kunde_epost",""), "telefon": data.get("kunde_telefon","")},
-            varelinjer=linjer,
-            notat=data.get("notat",""),
-        )
+        t = tjeneste.opprett_tilbud(bruker, **_les_skjema(data))
     except PrisFeil as e:
         return JSONResponse({"feil": str(e)}, status_code=400)
 
+    sendt = epost.send_tilbud(bruker["email"], t["tilbudsnr"],
+                              t["kunde_firma"], t["docx_path"])
+    return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})
+
+
+def _skjemalinje(l: dict) -> dict:
+    """En lagret linje i den formen skjemaet (nytt.html) bruker for linjene sine."""
+    rabatt = "" if l["rabatt_prosent"] is None else f'{l["rabatt_prosent"]:.2f}'.rstrip("0").rstrip(".")
+    return {
+        "linje_id": l["id"], "produkt_id": l["produkt_id"],
+        "manuell": not l["produkt_id"] and not l["magento_id"],
+        "sku": l["sku"], "navn": l["navn"], "antall": l["antall"],
+        "listepris": str(l["listepris"]), "kampanjepris": str(l["kampanjepris"]),
+        "listepris_vis": kr(l["listepris"]), "mva_sats": str(l["mva_sats"]),
+        "bilde_url": bilder.bilde_url(l["bilde"]) or l["kilde_bilde_url"] or "",
+        "modus": l["rabatt_type"], "rabatt": rabatt,
+        "fastpris": "" if l["fastpris"] is None else str(l["fastpris"]),
+    }
+
+
+@app.get("/tilbud/{tilbud_id}/rediger", response_class=HTMLResponse)
+async def rediger_skjema(request: Request, tilbud_id: int):
+    bruker = innlogget(request)
+    if not bruker:
+        return RedirectResponse("/login", status_code=303)
+    t = tjeneste.hent_tilbud(bruker, tilbud_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
+    return templates.TemplateResponse(request, "nytt.html", {
+        "request": request, "bruker": bruker, "mva_sats": katalog.MVA_SATS,
+        "t": t, "linjer": [_skjemalinje(l) for l in t["linjer"]]})
+
+
+@app.post("/tilbud/{tilbud_id}/rediger")
+async def lagre_endring(request: Request, tilbud_id: int):
+    bruker = _krev(request)
+    data = await request.json()
+    try:
+        t = tjeneste.oppdater_tilbud(bruker, tilbud_id, **_les_skjema(data))
+    except PrisFeil as e:
+        return JSONResponse({"feil": str(e)}, status_code=400)
+    if not t:
+        raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
+
+    # Til den som redigerte - det er den som skal sende det videre nå.
     sendt = epost.send_tilbud(bruker["email"], t["tilbudsnr"],
                               t["kunde_firma"], t["docx_path"])
     return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})

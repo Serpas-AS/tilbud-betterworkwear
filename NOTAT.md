@@ -6,6 +6,11 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 
 ## ▶ START HER
 
+> **22.10.2026: tilbud kan redigeres** («Rediger tilbudet» på tilbudssiden, `/tilbud/{id}/rediger`).
+> Samme skjema som nytt tilbud, ferdig utfylt. Linjer som står igjen beholder de frosne prisene
+> (`linje_id` → `tjeneste.frosset_produkt`); nye varer får dagens pris. Samme tilbudsnr., dato og
+> selger på dokumentet; Word lages på nytt og sendes til den som redigerte. Ingen versjonshistorikk.
+
 > **03.10.2026, sikkerhet:** kjører som egen bruker `tilbudweb` (ikke `www-data`) i systemd-sandkasse;
 > koden eies av root, bare `generert/` og `bildecache/` er skrivbare (0750/0640). Katalogbildene i
 > ny-bww leses via ACL. Alle POST krever `Origin: https://tilbud.betterworkwear.no` (CSRF), økter

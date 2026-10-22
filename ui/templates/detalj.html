@@ -50,6 +50,7 @@
 </div>
 <div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
   <a class="knapp" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
+  <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/rediger">Rediger tilbudet</a>
   {% if kan_eksportere %}
     <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/xlsx">Eksporter til Excel</a>
   {% endif %}

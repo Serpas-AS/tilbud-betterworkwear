@@ -1,5 +1,5 @@
 """
-Forretningslogikk for tilbud: oppretting, henting, markering som sendt.
+Forretningslogikk for tilbud: oppretting, redigering, henting, markering som sendt.
 
 Rollemodellen:
   selger  - ser og lager sine egne tilbud
@@ -70,22 +70,47 @@ def manuell_produkt(m: Dict) -> Dict:
     }
 
 
-def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
-                   notat: str = "") -> Dict:
+def frosset_produkt(l: Dict) -> Dict:
     """
-    varelinjer: [{produkt_id | manuell, antall, rabatt_type, rabatt_prosent, fastpris}, ...]
+    En lagret tilbudslinje i samme form som katalog.hent(), for redigering.
+
+    Linjer som står igjen når et tilbud redigeres, beholder prisene, bildet og
+    teksten de ble frosset med - ellers ville en endring av antall på én linje
+    stille og rolig flyttet alle de andre linjene til dagens katalogpris.
+    """
+    return {
+        "produkt_id": l["produkt_id"], "magento_id": l.get("magento_id"),
+        "sku": l["sku"], "navn": l["navn"], "bilde": l.get("bilde"),
+        "listepris": l["listepris"], "kampanjepris": l["kampanjepris"],
+        "mva_sats": l["mva_sats"], "kilde_url": l.get("kilde_url"),
+        "kilde_bilde_url": l.get("kilde_bilde_url"),
+        "kilde_beskrivelse": l.get("kilde_beskrivelse"),
+    }
+
+
+def _beregn(varelinjer: List[Dict], frosne: Optional[Dict[int, Dict]] = None) -> List[Dict]:
+    """
+    varelinjer: [{linje_id | produkt_id | manuell, antall, rabatt_type, rabatt_prosent, fastpris}, ...]
 
     Prisene slas opp fra katalogen HER, ikke i nettleseren - det som sendes inn
     fra skjemaet er kun produktvalg og rabatt. Deretter fryses resultatet.
-    Unntaket er varer utenfor nettbutikken (`manuell`), der selgeren selv
-    oppgir prisen - se manuell_produkt().
+    Unntakene er varer utenfor nettbutikken (`manuell`), der selgeren selv
+    oppgir prisen - se manuell_produkt(), og linjer som allerede finnes i
+    tilbudet som redigeres (`linje_id`), som beholder sin frosne pris.
     """
     if not varelinjer:
         raise PrisFeil("Tilbudet må inneholde minst én vare.")
 
     beregnede = []
     for v in varelinjer:
-        if v.get("manuell"):
+        if v.get("linje_id") is not None:
+            # Slås opp blant tilbudets egne linjer - en linje_id fra et annet
+            # tilbud gir feil, ikke en kopi av noen andres priser.
+            frossen = (frosne or {}).get(int(v["linje_id"]))
+            if not frossen:
+                raise PrisFeil("En av linjene finnes ikke lenger i tilbudet. Last siden på nytt.")
+            produkt = frosset_produkt(frossen)
+        elif v.get("manuell"):
             produkt = manuell_produkt(v["manuell"])
         else:
             produkt = katalog.hent(int(v["produkt_id"]))
@@ -98,13 +123,37 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
             rabatt_prosent=v.get("rabatt_prosent"),
             fastpris=v.get("fastpris"),
         ))
+        beregnede[-1]["magento_id"] = produkt.get("magento_id")
         beregnede[-1]["kilde_url"] = produkt.get("kilde_url")
         beregnede[-1]["kilde_bilde_url"] = produkt.get("kilde_bilde_url")
         beregnede[-1]["kilde_beskrivelse"] = produkt.get("kilde_beskrivelse")
         # Lastes ned og fryses nå, før dokumentet lages. Feiler det, beholdes
         # adressen likevel (Excel-eksporten bruker den); Word får bare ikke bilde.
         bilder.hent_ekstern(produkt.get("kilde_bilde_url"))
+    return beregnede
 
+
+def _skriv_linjer(cur, tilbud_id: int, beregnede: List[Dict]):
+    for i, l in enumerate(beregnede):
+        cur.execute(
+            """INSERT INTO tilbud_linje
+               (tilbud_id,sort_order,produkt_id,magento_id,sku,navn,bilde,antall,listepris,
+                kampanjepris,rabatt_type,rabatt_prosent,fastpris,nettopris,
+                linjesum,mva_sats,kilde_url,kilde_bilde_url,kilde_beskrivelse)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (tilbud_id, i, l["produkt_id"], l.get("magento_id"), l["sku"], l["navn"],
+             l.get("bilde"), l["antall"],
+             l["listepris"], l["kampanjepris"], l["rabatt_type"],
+             l["rabatt_prosent"], l["fastpris"], l["nettopris"],
+             l["linjesum"], l["mva_sats"], l.get("kilde_url"), l.get("kilde_bilde_url"),
+             l.get("kilde_beskrivelse")),
+        )
+
+
+def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
+                   notat: str = "") -> Dict:
+    """varelinjer: se _beregn()."""
+    beregnede = _beregn(varelinjer)
     totaler = summer(beregnede)
 
     conn = tilbud_db()
@@ -121,21 +170,7 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
              totaler["sum_eks_mva"], totaler["sum_mva"], totaler["sum_inkl_mva"]),
         )
         tilbud_id = cur.lastrowid
-
-        for i, l in enumerate(beregnede):
-            cur.execute(
-                """INSERT INTO tilbud_linje
-                   (tilbud_id,sort_order,produkt_id,sku,navn,bilde,antall,listepris,
-                    kampanjepris,rabatt_type,rabatt_prosent,fastpris,nettopris,
-                    linjesum,mva_sats,kilde_url,kilde_bilde_url,kilde_beskrivelse)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                (tilbud_id, i, l["produkt_id"], l["sku"], l["navn"],
-                 l.get("bilde"), l["antall"],
-                 l["listepris"], l["kampanjepris"], l["rabatt_type"],
-                 l["rabatt_prosent"], l["fastpris"], l["nettopris"],
-                 l["linjesum"], l["mva_sats"], l.get("kilde_url"), l.get("kilde_bilde_url"),
-                 l.get("kilde_beskrivelse")),
-            )
+        _skriv_linjer(cur, tilbud_id, beregnede)
 
         cur.execute("SELECT * FROM tilbud WHERE id=%s", (tilbud_id,))
         rad = cur.fetchone()
@@ -144,6 +179,55 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
         cur.execute("UPDATE tilbud SET docx_path=%s WHERE id=%s", (sti, tilbud_id))
         rad["docx_path"] = sti
         return rad
+    finally:
+        conn.close()
+
+
+def oppdater_tilbud(bruker: Dict, tilbud_id: int, kunde: Dict, varelinjer: List[Dict],
+                    notat: str = "") -> Optional[Dict]:
+    """
+    Redigerer et eksisterende tilbud og lager Word-dokumentet på nytt.
+
+    Samme tilbudsnummer, dato og selger som før - dokumentet skal fortsatt
+    vise den som eier tilbudet, også når ledelsen retter i det. Linjene
+    byttes ut i én transaksjon, så et tilbud aldri står halvveis redigert.
+    Returnerer None hvis tilbudet ikke finnes eller brukeren ikke har tilgang.
+    """
+    t = hent_tilbud(bruker, tilbud_id)
+    if not t:
+        return None
+    beregnede = _beregn(varelinjer, {l["id"]: l for l in t["linjer"]})
+    totaler = summer(beregnede)
+
+    conn = tilbud_db()
+    try:
+        cur = conn.cursor(dictionary=True)
+        conn.start_transaction()
+        cur.execute(
+            """UPDATE tilbud SET kunde_firma=%s, kunde_kontakt=%s, kunde_epost=%s,
+                                 kunde_telefon=%s, notat=%s,
+                                 sum_eks_mva=%s, sum_mva=%s, sum_inkl_mva=%s
+                WHERE id=%s""",
+            (kunde.get("firma",""), kunde.get("kontakt",""), kunde.get("epost",""),
+             kunde.get("telefon",""), notat,
+             totaler["sum_eks_mva"], totaler["sum_mva"], totaler["sum_inkl_mva"], tilbud_id))
+        cur.execute("DELETE FROM tilbud_linje WHERE tilbud_id=%s", (tilbud_id,))
+        _skriv_linjer(cur, tilbud_id, beregnede)
+        cur.execute("SELECT * FROM tilbud WHERE id=%s", (tilbud_id,))
+        rad = cur.fetchone()
+        cur.execute("SELECT * FROM users WHERE id=%s", (rad["user_id"],))
+        selger = cur.fetchone()
+
+        # Dokumentet lages før commit: feiler det, rulles endringen tilbake og
+        # det gamle dokumentet passer fortsatt til det som står i basen.
+        sti = dokument.generer(rad, beregnede, selger)
+        cur.execute("UPDATE tilbud SET docx_path=%s WHERE id=%s", (sti, tilbud_id))
+        conn.commit()
+        rad["docx_path"] = sti
+        return rad
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
