@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% block tittel %}{% if t %}Rediger {{ t.tilbudsnr }}{% else %}Nytt tilbud{% endif %}{% endblock %}
 {% block innhold %}
+{% set f = t or kilde %}
 {% if t %}
 <h1>Rediger {{ t.tilbudsnr }}</h1>
 <p style="color:#6b7280;margin-top:-.5rem">
@@ -13,6 +14,17 @@
 {% endif %}
 {% else %}
 <h1>Nytt tilbud</h1>
+{% if kilde %}
+<p style="color:#6b7280;margin-top:-.5rem">
+  Basert på <a href="/tilbud/{{ kilde.id }}" style="color:inherit">{{ kilde.tilbudsnr }}</a>.
+  Varene har fått dagens pris; antall og rabatt er kopiert. {{ kilde.tilbudsnr }} endres ikke.</p>
+{% if borte %}
+<div style="font-size:.9rem;margin:0 0 1rem;padding:.6rem .75rem;background:#fff8db;
+            border-left:4px solid #ffcf0d;border-radius:4px;color:#111">
+  <strong>Ikke lenger i nettbutikken, og derfor ikke med:</strong>
+  {% for b in borte %}<br>{{ b }}{% endfor %}</div>
+{% endif %}
+{% endif %}
 {% endif %}
 <div id="feil" class="feil" style="display:none"></div>
 
@@ -105,16 +117,16 @@
 <div class="kort">
   <label style="font-size:.95rem;color:#111;margin-bottom:.75rem">Kunde</label>
   <div class="rad rad-2">
-    <div><label for="kf">Firma</label><input id="kf" value="{{ t.kunde_firma if t else '' }}"></div>
-    <div><label for="kk">Kontaktperson</label><input id="kk" value="{{ t.kunde_kontakt if t else '' }}"></div>
+    <div><label for="kf">Firma</label><input id="kf" value="{{ f['kunde_firma'] if f else '' }}"></div>
+    <div><label for="kk">Kontaktperson</label><input id="kk" value="{{ f['kunde_kontakt'] if f else '' }}"></div>
   </div>
   <div class="rad rad-2">
-    <div><label for="ke">E-post</label><input id="ke" type="email" value="{{ t.kunde_epost if t else '' }}"></div>
-    <div><label for="kt">Telefon</label><input id="kt" value="{{ t.kunde_telefon if t else '' }}"></div>
+    <div><label for="ke">E-post</label><input id="ke" type="email" value="{{ f['kunde_epost'] if f else '' }}"></div>
+    <div><label for="kt">Telefon</label><input id="kt" value="{{ f['kunde_telefon'] if f else '' }}"></div>
   </div>
   <div class="rad">
     <div><label for="notat">Notat i tilbudet</label>
-    <textarea id="notat" rows="2" placeholder="F.eks. leveringstid eller forutsetninger">{{ t.notat or "" if t else "" }}</textarea></div>
+    <textarea id="notat" rows="2" placeholder="F.eks. leveringstid eller forutsetninger">{{ f.notat or "" if f else "" }}</textarea></div>
   </div>
 </div>
 
@@ -128,8 +140,8 @@
 // Katalogdata (navn, SKU, bilde-URL) settes inn i HTML her; escapes så et produktnavn med <img onerror=…>
 // ikke kan kjøre skript hos selgeren (03.10.2026).
 const esc = v => String(v ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
-// Ved redigering: tilbudets lagrede linjer, med linje_id - serveren bruker da de frosne prisene.
-const linjer = {{ (linjer if t else [])|tojson }};
+// Ved kopiering: linjene med dagens priser, uten linje_id. Ved redigering: tilbudets lagrede linjer, med linje_id - serveren bruker da de frosne prisene.
+const linjer = {{ (linjer if f else [])|tojson }};
 const LAGRE_URL = {{ ("/tilbud/%d/rediger" % t.id if t else "/nytt")|tojson }};
 const LAGRE_TEKST = {{ ("Lagre endringer og send til meg" if t else "Lag tilbud og send til meg")|tojson }};
 const nf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});

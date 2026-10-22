@@ -10,6 +10,8 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 > Samme skjema som nytt tilbud, ferdig utfylt. Linjer som står igjen beholder de frosne prisene
 > (`linje_id` → `tjeneste.frosset_produkt`); nye varer får dagens pris. Samme tilbudsnr., dato og
 > selger på dokumentet; Word lages på nytt og sendes til den som redigerte. Ingen versjonshistorikk.
+> «Nytt tilbud basert på dette» (`/tilbud/{id}/kopier`) fyller ut skjemaet for et NYTT tilbud: kunde,
+> antall og rabatt kopieres, men katalogvarer får dagens pris. Varer som er borte fra katalogen listes.
 
 > **03.10.2026, sikkerhet:** kjører som egen bruker `tilbudweb` (ikke `www-data`) i systemd-sandkasse;
 > koden eies av root, bare `generert/` og `bildecache/` er skrivbare (0750/0640). Katalogbildene i
@@ -39,33 +41,8 @@ annerledes ut enn nye tilbud. Ikke slett det.
 
 ### Køen, i prioritert rekkefølge
 
-**1. `Serpas_SalesQuote` — koble butikkens skjema til denne tjenesten.**
-Apps Scriptet er nå lest (kilden fikk vi fra Morten 01.09). Det gjør tre ting
-per innsending: skriver rad i regnearket `1jQWLhuh…`, lager et Google Doc fra
-malen `1tpNLaaK…` med pristabell, produktdatablad og strekkodesider, og
-**sender .docx-en automatisk til `data.email`**.
-
-Fire funn som styrer hva som må gjøres:
-
-- **182 av 195 forespørsler er fra BWW-ansatte selv.** Null gjester, alle
-  innlogget. Dette har aldri vært en kundefunksjon i praksis — de ansatte har
-  brukt butikkens handlekurv som sitt eget tilbudsverktøy. Det er jobben denne
-  tjenesten gjør nå.
-- **Autoutsendingen går til den som fylte ut skjemaet.** For de 13 eksterne
-  betyr det at en kunde har fått et ferdig priset tilbud uten at noen så på det.
-  Skal bort — det er selve grunnen til at denne tjenesten har mennesket i løkka.
-- **`curl_exec($ch)` kalles to ganger** i `Submit.php` (linje 186–187). Hver
-  innsending gir to ark-rader, to Google-dokumenter og **to e-poster**.
-- **Insert-en skriver aldri `company`, `contact_person`, `phone`, `address`,
-  `zip`, `city`.** Kolonnene finnes, men er NULL i alle 195 radene.
-  Kontaktopplysningene finnes bare i Google-enden. Forsvinner scriptet uten at
-  dette rettes først, mister BWW dem.
-
-Planen: behold skjemaet i butikken som **innboks**, skriv kontaktfeltene inn i
-`serpas_salesquote_request`, fjern Google-kallet og autoutsendingen, og legg en
-«lag tilbud av denne»-knapp i tjenesten som forhåndsutfyller et tilbud.
-
-Venter på svar fra Morten: skal autoutsendingen til kunden bort? (Anbefaling: ja.)
+~~**1. `Serpas_SalesQuote`**~~ — **utgår** (Morten 22.10.2026): gammel Magento-modul som i praksis
+aldri ble brukt, og funksjonaliteten trengs ikke. Ikke bygg noen innboks for den.
 
 **2. Rabattotal i selve Word-dokumentet.** I dag står rabatten bare per linje
 som «(10 % rabatt)». En «Du sparer …»-linje i sumtabellen er ofte det sterkeste

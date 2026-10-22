@@ -298,18 +298,22 @@ async def opprett(request: Request):
     return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})
 
 
+def _rabattfelt(l: dict) -> dict:
+    rabatt = "" if l["rabatt_prosent"] is None else f'{l["rabatt_prosent"]:.2f}'.rstrip("0").rstrip(".")
+    return {"antall": l["antall"], "modus": l["rabatt_type"], "rabatt": rabatt,
+            "fastpris": "" if l["fastpris"] is None else str(l["fastpris"])}
+
+
 def _skjemalinje(l: dict) -> dict:
     """En lagret linje i den formen skjemaet (nytt.html) bruker for linjene sine."""
-    rabatt = "" if l["rabatt_prosent"] is None else f'{l["rabatt_prosent"]:.2f}'.rstrip("0").rstrip(".")
     return {
         "linje_id": l["id"], "produkt_id": l["produkt_id"],
         "manuell": not l["produkt_id"] and not l["magento_id"],
-        "sku": l["sku"], "navn": l["navn"], "antall": l["antall"],
+        "sku": l["sku"], "navn": l["navn"],
         "listepris": str(l["listepris"]), "kampanjepris": str(l["kampanjepris"]),
         "listepris_vis": kr(l["listepris"]), "mva_sats": str(l["mva_sats"]),
         "bilde_url": bilder.bilde_url(l["bilde"]) or l["kilde_bilde_url"] or "",
-        "modus": l["rabatt_type"], "rabatt": rabatt,
-        "fastpris": "" if l["fastpris"] is None else str(l["fastpris"]),
+        **_rabattfelt(l),
     }
 
 
@@ -324,6 +328,50 @@ async def rediger_skjema(request: Request, tilbud_id: int):
     return templates.TemplateResponse(request, "nytt.html", {
         "request": request, "bruker": bruker, "mva_sats": katalog.MVA_SATS,
         "t": t, "linjer": [_skjemalinje(l) for l in t["linjer"]]})
+
+
+def _kopilinje(l: dict) -> Optional[dict]:
+    """
+    En lagret linje som NY linje i et nytt tilbud: dagens katalogpris, ikke den
+    frosne. Antall og rabatt følger med. None hvis varen er borte fra katalogen.
+    """
+    if not l["produkt_id"] and not l["magento_id"]:
+        # Utenfor nettbutikken: selgerens egen pris, som ved oppretting.
+        return {"manuell": True, "produkt_id": None, "sku": l["sku"], "navn": l["navn"],
+                "pris": str(l["listepris"]), "inkl_mva": False,
+                "kilde_url": l["kilde_url"] or "", "bilde_url": l["kilde_bilde_url"] or "",
+                "beskrivelse": l["kilde_beskrivelse"] or "",
+                "listepris": str(l["listepris"]), "kampanjepris": str(l["listepris"]),
+                "listepris_vis": kr(l["listepris"]), "mva_sats": str(katalog.MVA_SATS),
+                **_rabattfelt(l)}
+    p = katalog.hent(l["produkt_id"]) if l["produkt_id"] else None
+    if not p:
+        return None
+    return {"produkt_id": p["produkt_id"], "sku": p["sku"], "navn": p["navn"],
+            "listepris": str(p["listepris"]), "kampanjepris": str(p["kampanjepris"]),
+            "listepris_vis": kr(p["listepris"]), "mva_sats": str(p["mva_sats"]),
+            "bilde_url": bilder.bilde_url(p["bilde"]), **_rabattfelt(l)}
+
+
+@app.get("/tilbud/{tilbud_id}/kopier", response_class=HTMLResponse)
+async def kopier_skjema(request: Request, tilbud_id: int):
+    """Nytt tilbud basert på et gammelt. Ingenting lagres før selgeren trykker «Lag tilbud»."""
+    bruker = innlogget(request)
+    if not bruker:
+        return RedirectResponse("/login", status_code=303)
+    kilde = tjeneste.hent_tilbud(bruker, tilbud_id)
+    if not kilde:
+        raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
+    linjer, borte = [], []
+    for l in kilde["linjer"]:
+        k = await run_in_threadpool(_kopilinje, l)
+        if k:
+            linjer.append(k)
+        else:
+            borte.append(f'{l["sku"]} {l["navn"]}')
+    return templates.TemplateResponse(request, "nytt.html", {
+        "request": request, "bruker": bruker, "mva_sats": katalog.MVA_SATS,
+        "kilde": kilde, "linjer": linjer, "borte": borte})
 
 
 @app.post("/tilbud/{tilbud_id}/rediger")
