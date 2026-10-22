@@ -1,29 +1,49 @@
 {% extends "base.html" %}{% block tittel %}Logg inn{% endblock %}
 {% block innhold %}
-<div class="kort" style="max-width:400px;margin:3rem auto">
-  <h1>Logg inn</h1>
-  {% if feil %}<div class="feil">{{ feil }}</div>{% endif %}
-  {% if steg == "epost" %}
-    <form method="post" action="/login/kode">
-      <div class="rad">
-        <div><label for="e">E-postadresse</label>
-        <input id="e" name="epost" type="email" required autofocus value="{{ epost }}"></div>
-      </div>
-      <button class="knapp" type="submit">Send meg en kode</button>
-    </form>
-  {% else %}
-    <p style="color:#6b7280">Har du tilgang, ligger det nå en kode i innboksen til
-       <strong>{{ epost }}</strong>. Den er gyldig i 10 minutter.</p>
-    <form method="post" action="/login/verifiser">
-      <input type="hidden" name="epost" value="{{ epost }}">
-      <div class="rad">
-        <div><label for="k">Kode</label>
-        <input id="k" name="kode" required autofocus autocomplete="one-time-code"
-               placeholder="ABCD-2345" style="letter-spacing:2px;text-transform:uppercase"></div>
-      </div>
-      <button class="knapp" type="submit">Logg inn</button>
-      <a href="/login" style="margin-left:.75rem;color:#6b7280">Bytt e-post</a>
-    </form>
-  {% endif %}
+<style>
+  .innlogging{max-width:400px;margin:4rem auto 2rem}
+  .innlogging .kort{padding:2rem 1.75rem 1.75rem}
+  /* Samme profil som tilbudsdokumentet: logo med gul hårstrek under, gul som aksent, ikke flate. */
+  .innlogging .logo{display:block;width:220px;max-width:100%;height:auto;margin:0 auto}
+  .innlogging .strek{height:2px;background:#ffcf0d;margin:1.25rem 0 1rem}
+  .innlogging .undertittel{text-align:center;font-size:.75rem;font-weight:600;color:#767676;
+                           text-transform:uppercase;letter-spacing:.14em;margin:0 0 1.5rem}
+  .innlogging h1{font-size:1.2rem;margin:0 0 1rem}
+  .innlogging .knapp{width:100%;margin-top:.25rem}
+  .innlogging .bunn{text-align:center;font-size:.8rem;color:#767676;margin-top:1rem}
+  .innlogging .bunn a{color:inherit}
+</style>
+<div class="innlogging">
+  <div class="kort">
+    {% include "_logo.svg" %}
+    <div class="strek"></div>
+    <p class="undertittel">Tilbudsverktøy for selgere</p>
+    <h1>Logg inn</h1>
+    {% if feil %}<div class="feil">{{ feil }}</div>{% endif %}
+    {% if steg == "epost" %}
+      <form method="post" action="/login/kode">
+        <div class="rad">
+          <div><label for="e">E-postadresse</label>
+          <input id="e" name="epost" type="email" required autofocus value="{{ epost }}"></div>
+        </div>
+        <button class="knapp" type="submit">Send meg en kode</button>
+      </form>
+    {% else %}
+      <p style="color:#6b7280">Har du tilgang, ligger det nå en kode i innboksen til
+         <strong>{{ epost }}</strong>. Den er gyldig i 10 minutter.</p>
+      <form method="post" action="/login/verifiser">
+        <input type="hidden" name="epost" value="{{ epost }}">
+        <div class="rad">
+          <div><label for="k">Kode</label>
+          <input id="k" name="kode" required autofocus autocomplete="one-time-code"
+                 placeholder="ABCD-2345" style="letter-spacing:2px;text-transform:uppercase"></div>
+        </div>
+        <button class="knapp" type="submit">Logg inn</button>
+        <p style="text-align:center;margin:.75rem 0 0">
+          <a href="/login" style="color:#6b7280">Bytt e-post</a></p>
+      </form>
+    {% endif %}
+  </div>
+  <p class="bunn"><a href="https://www.betterworkwear.no" rel="noopener">betterworkwear.no</a></p>
 </div>
 {% endblock %}
