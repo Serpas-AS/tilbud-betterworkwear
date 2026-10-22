@@ -297,6 +297,74 @@ def _meta(doc, *navn) -> str:
     return ""
 
 
+def _bilde_element(doc) -> str:
+    """`itemprop="image"` på selve <img>-en (3X Workwear): adressen står i src, ikke i content."""
+    for el in doc.xpath('//*[@itemprop="image"]'):
+        v = el.get("content") or el.get("src") or el.get("href")
+        if v and v.strip():
+            return v.strip()
+    return ""
+
+
+def _beskrivelse_element(doc) -> str:
+    """`itemprop="description"` på et element på siden, med avsnittene. Mer presist enn
+    <meta name="description">, som hos 3X er en fellestekst for hele nettstedet."""
+    for el in doc.xpath('//*[@itemprop="description"][not(self::meta)]'):
+        tekst = _ren_tekst(lxml.html.tostring(el, encoding="unicode"))
+        if tekst:
+            return tekst
+    return ""
+
+
+def _you(doc) -> Dict:
+    """
+    you.no (grossist; pris bare for innloggede forhandlere). Ingen JSON-LD eller
+    meta-tagger, men fast oppsett: varenummeret først i overskriften
+    («P126 Denim Bib Apron»), produktbildet i bildeknappen, og ingress pluss
+    «Egenskaper og materialer» / «Tekniske egenskaper» i et trekkspill.
+    """
+    ut = {}
+    # Produktets overskrift - søkevinduet øverst på siden har også en <h1>.
+    h1 = doc.xpath('//h1[contains(@class,"text-uppercase")]')
+    # Bare overskriftens egen tekst: merker som «Nyhet» ligger i en <span class="badge"> inni.
+    overskrift = _tekst(" ".join(h1[0].xpath("text()"))) if h1 else ""
+    m = re.match(r"^([A-Z]{0,4}\d{2,}[A-Z0-9-]*)\s+(.+)$", overskrift)
+    if m:
+        ut["sku"], ut["navn"] = m.group(1), m.group(2)
+    elif overskrift:
+        ut["navn"] = overskrift
+    bilde = doc.xpath('//a[@data-bs-target="#ProductDetailsImageModal"]//img/@src')
+    if bilde:
+        ut["bilde_url"] = bilde[0]
+    deler = []
+    for el in h1[0].xpath('following::div[contains(@style,"font-size: 1.25em")][1]') if h1 else []:
+        deler.append(_ren_tekst(lxml.html.tostring(el, encoding="unicode")))
+    for punkt in doc.xpath('//div[@id="product-details-accordion"]/div[contains(@class,"accordion-item")]'):
+        tittel = _tekst(" ".join(punkt.xpath('.//*[contains(@class,"accordion-header")]//text()')))
+        kropp = punkt.xpath('.//div[contains(@class,"accordion-body")]')
+        tekst = _ren_tekst(lxml.html.tostring(kropp[0], encoding="unicode")) if kropp else ""
+        if tekst and tittel.lower() != "sertifikater":
+            deler.append(f"{tittel}:\n{tekst}" if tittel else tekst)
+    if any(deler):
+        ut["beskrivelse"] = "\n\n".join(d for d in deler if d)[:MAKS_BESKRIVELSE]
+    return ut
+
+
+def _newwave(doc) -> Dict:
+    """newwave.no: varenummeret står bare i bildefilnavnet (…/5219806809_front.jpg),
+    og tittelen er «Handlenett Sera | Bærenett | New Wave Norway AS» - første ledd er navnet."""
+    ut = {"navn": _meta(doc, "og:title").split(" | ")[0].strip()}
+    m = re.search(r"/(\d{6,})_[^/]*$", _meta(doc, "og:image"))
+    if m:
+        ut["sku"] = m.group(1)
+    return ut
+
+
+# Butikker uten standard produktmerking. Nøkkel: vertsnavn uten www.
+# Det regelen returnerer, erstatter den generelle tolkingen; resten beholdes.
+SPESIAL = {"you.no": _you, "newwave.no": _newwave}
+
+
 def tolk(html: bytes, url: str = "") -> Dict:
     """Produktdata fra HTML. Egen funksjon slik at den kan testes uten nett."""
     # Uten <meta charset> leser lxml bytene som latin-1, og «Bærenett» ble
@@ -319,12 +387,21 @@ def tolk(html: bytes, url: str = "") -> Dict:
     if not ut.get("sku"):
         ut["sku"] = _meta(doc, "sku", "product:retailer_item_id", "mpn")
     if not ut.get("pris"):
-        ut["pris"] = tall(_meta(doc, "product:price:amount", "og:price:amount", "price"))
-        ut["valuta"] = _meta(doc, "product:price:currency", "og:price:currency", "priceCurrency")
+        # «product:price.amount» med punktum: New Wave skriver det slik.
+        ut["pris"] = tall(_meta(doc, "product:price:amount", "product:price.amount",
+                                "og:price:amount", "price"))
+        ut["valuta"] = _meta(doc, "product:price:currency", "product:price.currency",
+                             "og:price:currency", "priceCurrency")
     if not ut.get("bilde_url"):
-        ut["bilde_url"] = _meta(doc, "og:image")
+        ut["bilde_url"] = _meta(doc, "og:image") or _bilde_element(doc)
     if not ut.get("beskrivelse"):
-        ut["beskrivelse"] = _ren_tekst(_meta(doc, "og:description", "description"))
+        ut["beskrivelse"] = (_beskrivelse_element(doc) or _ren_tekst(_meta(doc, "og:description"))
+                             or _ren_tekst(_meta(doc, "description")))
+
+    # Butikkens egen regel sist, og den vinner: den er skrevet for akkurat den siden.
+    vert = (urlsplit(url).hostname or "").removeprefix("www.")
+    if vert in SPESIAL:
+        ut.update({k: v for k, v in SPESIAL[vert](doc).items() if v})
 
     # Bildet vises bare som forhåndsvisning i skjemaet, det lagres ikke.
     # Bare http(s): en `javascript:`- eller `data:`-adresse fra siden skal ikke videre.
