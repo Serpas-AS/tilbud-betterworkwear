@@ -360,9 +360,20 @@ def _newwave(doc) -> Dict:
     return ut
 
 
+def _3x(doc) -> Dict:
+    """
+    3xworkwear.no: varenummeret er modell + farge (+ størrelse), f.eks.
+    60111-414-1117-2424 (Pizol bukse, sort) og 60111-414-1117-1924 (samme, lys blå/sort).
+    Tilbudet gis på modellen, som er de TO første leddene: det første alene er
+    serien - Boye genser (9101-18-…) og Boye T-skjorte (9101-22-…) deler 9101.
+    """
+    deler = _meta(doc, "sku").split("-")
+    return {"sku": "-".join(deler[:2])} if len(deler) > 2 else {}
+
+
 # Butikker uten standard produktmerking. Nøkkel: vertsnavn uten www.
 # Det regelen returnerer, erstatter den generelle tolkingen; resten beholdes.
-SPESIAL = {"you.no": _you, "newwave.no": _newwave}
+SPESIAL = {"you.no": _you, "newwave.no": _newwave, "3xworkwear.no": _3x}
 
 
 def tolk(html: bytes, url: str = "") -> Dict:

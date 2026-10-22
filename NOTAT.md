@@ -15,8 +15,8 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 >
 > **Produktlenker, testet 22.10.2026** (`api/ekstern.py`): Snickers, Solid Gear og Hellberg gir alt via
 > JSON-LD. New Wave og you.no har egne regler (`SPESIAL`). **3X Workwear og you.no viser ikke pris uten
-> innlogging** (forhandlerpriser) - selgeren fyller inn prisen; resten hentes. 3X gir varenummer med
-> farge/størrelse (60111-414-1117-2424).
+> innlogging** (forhandlerpriser) - selgeren fyller inn prisen; resten hentes. 3X: varenummeret kuttes
+> til modellen = de to første leddene (60111-414-1117-2424 → 60111-414), avtalt med Morten 22.10.2026.
 
 > **03.10.2026, sikkerhet:** kjører som egen bruker `tilbudweb` (ikke `www-data`) i systemd-sandkasse;
 > koden eies av root, bare `generert/` og `bildecache/` er skrivbare (0750/0640). Katalogbildene i
