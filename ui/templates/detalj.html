@@ -1,6 +1,13 @@
 {% extends "base.html" %}{% block tittel %}{{ t.tilbudsnr }}{% endblock %}
 {% block innhold %}
 <h1>{{ t.tilbudsnr }} <span class="merkelapp m-{{ t.status }}">{{ t.status }}</span></h1>
+{% if lagret %}
+<div style="margin:0 0 1rem;padding:.7rem .9rem;background:#ecfdf5;border:1px solid #a7f3d0;
+            border-radius:8px;color:#065f46">
+  <strong>Lagret.</strong>
+  {% if lagret == "sendt" %}Word-dokumentet er sendt til {{ bruker.email }}.
+  {% else %}Ingen e-post er sendt - last ned dokumentet under.{% endif %}</div>
+{% endif %}
 <div class="kort">
   <div class="rad rad-2">
     <div><label>Kunde</label>

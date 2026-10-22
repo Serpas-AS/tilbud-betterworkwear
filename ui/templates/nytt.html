@@ -131,9 +131,12 @@
 </div>
 
 <div class="kort">
-  <button class="knapp" id="lagre">{{ "Lagre endringer og send til meg" if t else "Lag tilbud og send til meg" }}</button>
+  <button class="knapp" id="lagre-send">{{ "Lagre endringer og send til meg" if t else "Lag tilbud og send til meg" }}</button>
+  <button class="knapp sekundaer" id="lagre" style="margin-left:.5rem">Lagre</button>
   {% if t %}<a class="knapp sekundaer" href="/tilbud/{{ t.id }}" style="margin-left:.5rem">Avbryt</a>{% endif %}
-  <span style="color:#6b7280;margin-left:.75rem">Dokumentet sendes til {{ bruker.email }}</span>
+  <p style="color:#6b7280;font-size:.85rem;margin:.6rem 0 0">
+    «Send til meg» sender Word-dokumentet til {{ bruker.email }}. «Lagre» lagrer uten e-post -
+    dokumentet kan lastes ned fra tilbudssiden.</p>
 </div>
 
 <script>
@@ -143,7 +146,7 @@ const esc = v => String(v ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&l
 // Ved kopiering: linjene med dagens priser, uten linje_id. Ved redigering: tilbudets lagrede linjer, med linje_id - serveren bruker da de frosne prisene.
 const linjer = {{ (linjer if f else [])|tojson }};
 const LAGRE_URL = {{ ("/tilbud/%d/rediger" % t.id if t else "/nytt")|tojson }};
-const LAGRE_TEKST = {{ ("Lagre endringer og send til meg" if t else "Lag tilbud og send til meg")|tojson }};
+
 const nf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});
 const $ = s => document.querySelector(s);
 
@@ -180,6 +183,7 @@ $('#sok').addEventListener('input', e => {
 });
 
 function leggTil(p) {
+  ulagret = true;
   linjer.push({...p, antall: 1, modus: 'ingen', rabatt: '', fastpris: ''});
   tegn();
 }
@@ -383,7 +387,7 @@ function tegn() {
 
   kropp.querySelectorAll('[data-f]').forEach(el => {
     const i = +el.dataset.i, f = el.dataset.f;
-    if (f === 'slett') { el.onclick = () => { linjer.splice(i,1); tegn(); }; return; }
+    if (f === 'slett') { el.onclick = () => { linjer.splice(i,1); ulagret = true; tegn(); }; return; }
     if (f === 'modus') {
       el.onchange = () => {
         linjer[i].modus = el.value;
@@ -456,16 +460,19 @@ function oppdaterSummer() {
   if (kampanje >= 0.005) settTekst('sum-kampanje', '−' + nf.format(kampanje));
 }
 
-$('#lagre').onclick = async () => {
+// To knapper, samme lagring. send_epost avgjør om dokumentet også går til selgeren.
+async function lagre(knapp, send_epost) {
   const f = $('#feil'); f.style.display = 'none';
   if (!linjer.length) { f.textContent = 'Legg til minst én vare.'; f.style.display='block'; return; }
-  $('#lagre').disabled = true; $('#lagre').textContent = 'Lagrer tilbud …';
+  const knapper = [$('#lagre-send'), $('#lagre')], tekst = knapp.textContent;
+  knapper.forEach(k => k.disabled = true); knapp.textContent = 'Lagrer tilbud …';
   const r = await fetch(LAGRE_URL, {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       kunde_firma: $('#kf').value, kunde_kontakt: $('#kk').value,
       kunde_epost: $('#ke').value, kunde_telefon: $('#kt').value,
       notat: $('#notat').value,
+      send_epost,
       linjer: linjer.map(l => ({
         linje_id: l.linje_id ?? null,
         produkt_id: l.produkt_id, antall: parseInt(l.antall) || 1,
@@ -481,11 +488,25 @@ $('#lagre').onclick = async () => {
   const d = await r.json();
   if (!r.ok) {
     f.textContent = d.feil || 'Noe gikk galt.'; f.style.display = 'block';
-    $('#lagre').disabled = false; $('#lagre').textContent = LAGRE_TEKST;
+    knapper.forEach(k => k.disabled = false); knapp.textContent = tekst;
     return;
   }
-  location.href = '/tilbud/' + d.id;
-};
+  ulagret = false;
+  location.href = '/tilbud/' + d.id + '?lagret=' + (send_epost && d.epost_sendt ? 'sendt' : 'lagret');
+}
+
+// Ingen autolagring: forlater selgeren skjemaet med endringer, spør nettleseren først.
+// Søkefeltet og feltene for vare utenfor nettbutikken teller ikke - de er ikke i tilbudet ennå.
+let ulagret = false;
+const IKKE_ENDRING = /^(sok|e-)/;
+['input', 'change'].forEach(hva => document.addEventListener(hva, e => {
+  if (!IKKE_ENDRING.test(e.target.id || e.target.name || '')) ulagret = true;
+}));
+window.addEventListener('beforeunload', e => {
+  if (ulagret) { e.preventDefault(); e.returnValue = ''; }
+});
+$('#lagre-send').onclick = () => lagre($('#lagre-send'), true);
+$('#lagre').onclick = () => lagre($('#lagre'), false);
 if (linjer.length) tegn();
 </script>
 {% endblock %}

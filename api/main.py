@@ -293,8 +293,8 @@ async def opprett(request: Request):
     except PrisFeil as e:
         return JSONResponse({"feil": str(e)}, status_code=400)
 
-    sendt = epost.send_tilbud(bruker["email"], t["tilbudsnr"],
-                              t["kunde_firma"], t["docx_path"])
+    sendt = data.get("send_epost", True) and epost.send_tilbud(
+        bruker["email"], t["tilbudsnr"], t["kunde_firma"], t["docx_path"])
     return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})
 
 
@@ -386,13 +386,14 @@ async def lagre_endring(request: Request, tilbud_id: int):
         raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
 
     # Til den som redigerte - det er den som skal sende det videre nå.
-    sendt = epost.send_tilbud(bruker["email"], t["tilbudsnr"],
-                              t["kunde_firma"], t["docx_path"])
+    # «Lagre» i skjemaet sender send_epost=false: bare lagring, ingen e-post.
+    sendt = data.get("send_epost", True) and epost.send_tilbud(
+        bruker["email"], t["tilbudsnr"], t["kunde_firma"], t["docx_path"])
     return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})
 
 
 @app.get("/tilbud/{tilbud_id}", response_class=HTMLResponse)
-async def detalj(request: Request, tilbud_id: int):
+async def detalj(request: Request, tilbud_id: int, lagret: str = ""):
     bruker = innlogget(request)
     if not bruker:
         return RedirectResponse("/login", status_code=303)
@@ -401,7 +402,9 @@ async def detalj(request: Request, tilbud_id: int):
         raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
     return templates.TemplateResponse(request, "detalj.html",
         {"request": request, "bruker": bruker, "t": t,
-         "kan_eksportere": eksport.har_tilgang(bruker)})
+         "kan_eksportere": eksport.har_tilgang(bruker),
+         # Fra skjemaet etter lagring: «lagret» eller «sendt». Bare kvittering, ingen tilstand.
+         "lagret": lagret if lagret in ("lagret", "sendt") else ""})
 
 
 @app.get("/tilbud/{tilbud_id}/dokument")
