@@ -17,6 +17,8 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 > JSON-LD. New Wave og you.no har egne regler (`SPESIAL`). **3X Workwear og you.no viser ikke pris uten
 > innlogging** (forhandlerpriser) - selgeren fyller inn prisen; resten hentes. 3X: varenummeret kuttes
 > til modellen = de to første leddene (60111-414-1117-2424 → 60111-414), avtalt med Morten 22.10.2026.
+> Snickers/Solid Gear/Hellberg (`_hultafors`): beskrivelsen tas fra sidens norske tekst, ikke JSON-LD
+> (kort hos Solid Gear, engelsk hos Snickers).
 
 > **03.10.2026, sikkerhet:** kjører som egen bruker `tilbudweb` (ikke `www-data`) i systemd-sandkasse;
 > koden eies av root, bare `generert/` og `bildecache/` er skrivbare (0750/0640). Katalogbildene i
@@ -49,9 +51,10 @@ annerledes ut enn nye tilbud. Ikke slett det.
 ~~**1. `Serpas_SalesQuote`**~~ — **utgår** (Morten 22.10.2026): gammel Magento-modul som i praksis
 aldri ble brukt, og funksjonaliteten trengs ikke. Ikke bygg noen innboks for den.
 
-**2. Rabattotal i selve Word-dokumentet.** I dag står rabatten bare per linje
-som «(10 % rabatt)». En «Du sparer …»-linje i sumtabellen er ofte det sterkeste
-i et tilbud. Foreslått, ikke bestilt — det er kundevendt layout i malen.
+~~**2. Rabattotal i selve Word-dokumentet.**~~ — **gjort 22.10.2026.** Sumtabellen har
+«Veil. pris eks. mva» og «Du sparer −X kr (Y %)» over «Sum eks. mva», bare når totalen er
+under veil. (`dokument._sparing`, malendring i `maler/sparelinje.py`, backup
+`maler/tilbud-mal.docx.bak-sparer-2026-10-22`). Måles mot veil., så kampanje regnes med.
 
 **3. Legg inn de øvrige selgerne** under /brukere. Husk navn og telefon, de
 havner på tilbudsdokumentene.

@@ -8,7 +8,7 @@ Word - layout og profil bor der, ikke i denne fila.
 import logging
 import os
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List
 
 from docx.shared import Mm
@@ -79,6 +79,25 @@ def _bilde(doc: DocxTemplate, l: Dict):
     return InlineImage(doc, sti, width=BILDEBREDDE)
 
 
+def _sparing(tilbud: Dict, linjer: List[Dict]) -> Dict:
+    """
+    «Du sparer»-linja i sumtabellen: veil. pris mot det kunden betaler, eks. mva.
+
+    Måles mot listeprisen (veil.), samme tall som står i Veil.-kolonnen - da
+    regnes en pågående kampanje med i det kunden sparer. Vises bare når
+    totalen er lavere enn veil.; en fastpris over veil. på én linje kan spise
+    opp rabatten på de andre, og da står linja ikke der i det hele tatt.
+    """
+    veil = sum(Decimal(str(l["listepris"])) * int(l["antall"]) for l in linjer)
+    spart = veil - Decimal(str(tilbud["sum_eks_mva"]))
+    if veil <= 0 or spart < Decimal("0.01"):
+        return {"spart": ""}
+    prosent = (spart / veil * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return {"spart": kr(spart), "veil_eks_mva": kr(veil),
+            # Under 1 % runder til 0 - da står bare beløpet.
+            "spart_prosent": str(prosent) if prosent >= 1 else "<1"}
+
+
 def generer(tilbud: Dict, linjer: List[Dict], selger: Dict) -> str:
     """
     Skriver dokumentet og returnerer stien.
@@ -115,6 +134,7 @@ def generer(tilbud: Dict, linjer: List[Dict], selger: Dict) -> str:
         "sum_mva": kr(tilbud["sum_mva"]),
         "sum_inkl_mva": kr(tilbud["sum_inkl_mva"]),
         "notat": tilbud.get("notat") or "",
+        **_sparing(tilbud, linjer),
     # autoescape: verdiene settes inn som tekst, ikke rå Word-XML. Uten dette forsvant «&» («Hansen & Sønn»),
     # og en selger kunne legge inn vilkårlig markup i dokumentet som går til kunden (03.10.2026).
     }, autoescape=True)

@@ -371,9 +371,26 @@ def _3x(doc) -> Dict:
     return {"sku": "-".join(deler[:2])} if len(deler) > 2 else {}
 
 
+def _hultafors(doc) -> Dict:
+    """
+    Snickers, Solid Gear og Hellberg (Hultafors Group, samme plattform). JSON-LD gir
+    alt annet, men beskrivelsen der er kort (Solid Gear: én setning) eller engelsk
+    (Snickers). Den norske teksten står på siden. Klassenavnene er generert
+    («product-information-tabs_overview__rDLKO»), så bare den faste delen matches.
+    Lengste tekst vinner - Snickers har både en ingress og hovedteksten.
+    """
+    kandidater = [_ren_tekst(lxml.html.tostring(el, encoding="unicode")) for el in doc.xpath(
+        '//*[contains(@class,"product-information-tabs_overview")'
+        ' or contains(@class,"product-page_description")]')]
+    beste = max(kandidater, key=len, default="")
+    return {"beskrivelse": beste} if len(beste) > 40 else {}
+
+
 # Butikker uten standard produktmerking. Nøkkel: vertsnavn uten www.
 # Det regelen returnerer, erstatter den generelle tolkingen; resten beholdes.
-SPESIAL = {"you.no": _you, "newwave.no": _newwave, "3xworkwear.no": _3x}
+SPESIAL = {"you.no": _you, "newwave.no": _newwave, "3xworkwear.no": _3x,
+           "snickersworkwear.no": _hultafors, "solidgearfootwear.no": _hultafors,
+           "hellbergsafety.no": _hultafors}
 
 
 def tolk(html: bytes, url: str = "") -> Dict:
