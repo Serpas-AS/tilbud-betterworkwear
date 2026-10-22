@@ -299,8 +299,16 @@ def _meta(doc, *navn) -> str:
 
 def tolk(html: bytes, url: str = "") -> Dict:
     """Produktdata fra HTML. Egen funksjon slik at den kan testes uten nett."""
+    # Uten <meta charset> leser lxml bytene som latin-1, og «Bærenett» ble
+    # «BÃ¦renett» (newwave.no oppgir tegnsettet bare i HTTP-headeren). Er
+    # innholdet gyldig UTF-8, er det UTF-8 - latin-1-tekst med æøå er det aldri.
     try:
-        doc = lxml.html.document_fromstring(html)
+        html.decode("utf-8")
+        parser = lxml.html.HTMLParser(encoding="utf-8")
+    except UnicodeDecodeError:
+        parser = None
+    try:
+        doc = lxml.html.document_fromstring(html, parser=parser)
     except (ValueError, lxml.etree.ParserError):
         raise HentFeil("Siden kunne ikke leses som HTML.")
 
