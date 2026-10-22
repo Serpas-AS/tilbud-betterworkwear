@@ -56,6 +56,12 @@ aldri ble brukt, og funksjonaliteten trengs ikke. Ikke bygg noen innboks for den
 under veil. (`dokument._sparing`, malendring i `maler/sparelinje.py`, backup
 `maler/tilbud-mal.docx.bak-sparer-2026-10-22`). Måles mot veil., så kampanje regnes med.
 
+**Status vunnet/tapt (22.10.2026).** `tilbud.status` er generert → sendt → vunnet | tapt, og
+`avgjort_at` sier når. Knapper i oversikten og på tilbudssiden (`_status.html`), spørsmål om
+«sendt» når Word lastes ned, lenke til tilbudet i e-posten, og oppsummering med treffprosent
+øverst i oversikten. **Merk:** malene i `ui/templates` er live straks de lagres (Jinja laster dem
+på nytt), mens Python-koden krever omstart - en mal som bruker en ny variabel må tåle at den mangler.
+
 **3. Legg inn de øvrige selgerne** under /brukere. Husk navn og telefon, de
 havner på tilbudsdokumentene.
 

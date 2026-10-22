@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block tittel %}{{ t.tilbudsnr }}{% endblock %}
 {% block innhold %}
-<h1>{{ t.tilbudsnr }} <span class="merkelapp m-{{ t.status }}">{{ t.status }}</span></h1>
+{% import "_status.html" as st %}
+<h1>{{ t.tilbudsnr }} {{ st.merke(t.status) }}</h1>
 {% if lagret %}
 <div style="margin:0 0 1rem;padding:.7rem .9rem;background:#ecfdf5;border:1px solid #a7f3d0;
             border-radius:8px;color:#065f46">
@@ -56,18 +57,33 @@
     ikke om katalogen endres.</p>
 </div>
 <div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-  <a class="knapp" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
+  <a class="knapp" id="last-ned" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
   <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/rediger">Rediger tilbudet</a>
   <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/kopier">Nytt tilbud basert på dette</a>
   {% if kan_eksportere %}
     <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/xlsx">Eksporter til Excel</a>
   {% endif %}
-  {% if t.status != "sendt" %}
-    <form method="post" action="/tilbud/{{ t.id }}/sendt" style="margin:0">
-      <button class="knapp sekundaer" type="submit">Marker som sendt til kunde</button>
-    </form>
-  {% else %}
-    <span style="color:#6b7280">Markert som sendt {{ t.sendt_at.strftime("%d.%m.%Y kl. %H:%M") }}.</span>
-  {% endif %}
 </div>
+<div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+  <label style="margin:0">Status</label> {{ st.merke(t.status) }}
+  <span style="color:#6b7280;font-size:.9rem">
+    {% if t.status == "generert" %}Ikke markert som sendt til kunden.
+    {% else %}Sendt {{ t.sendt_at.strftime("%d.%m.%Y") }}{% if t.avgjort_at %},
+      {{ t.status }} {{ t.avgjort_at.strftime("%d.%m.%Y") }}{% endif %}.
+    {% endif %}</span>
+  <span style="margin-left:auto">{{ st.neste(t) }}</span>
+</div>
+{% if t.status == "generert" %}
+{# Spørsmålet kommer når dokumentet lastes ned - det er da selgeren er i ferd med å sende det. #}
+<div id="sendt-sporsmal" class="info" hidden style="gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem">
+  <span><strong>Har du sendt tilbudet til kunden?</strong> Marker det, så stemmer oversikten.</span>
+  {{ st.knapp(t, "sendt", "Ja, marker som sendt", "", sekundaer=False) }}
+</div>
+<script>
+document.getElementById('last-ned').addEventListener('click', () => {
+  const s = document.getElementById('sendt-sporsmal');
+  s.hidden = false; s.style.display = 'flex';
+});
+</script>
+{% endif %}
 {% endblock %}

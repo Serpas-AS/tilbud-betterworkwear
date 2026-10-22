@@ -1,0 +1,26 @@
+{# Status på et tilbud: merkelapp og knappene for neste steg. Brukes i oversikten og på tilbudssiden.
+   generert -> sendt -> vunnet | tapt. «Sendt» er selvrapportert; se tjeneste.sett_status. #}
+{% set TEKST = {"generert": "ikke sendt", "sendt": "sendt", "vunnet": "vunnet", "tapt": "tapt"} %}
+
+{% macro merke(status) -%}
+  <span class="merkelapp s-{{ status }}">{{ TEKST[status] }}</span>
+{%- endmacro %}
+
+{% macro knapp(t, status, tekst, tilbake, sekundaer=True) -%}
+  <form method="post" action="/tilbud/{{ t.id }}/status" class="statusform">
+    <input type="hidden" name="status" value="{{ status }}">
+    <input type="hidden" name="tilbake" value="{{ tilbake }}">
+    <button class="knapp{% if sekundaer %} sekundaer{% endif %} liten" type="submit">{{ tekst }}</button>
+  </form>
+{%- endmacro %}
+
+{# Neste steg for tilbudet. tilbake: "oversikt" eller "" (tilbudssiden). #}
+{% macro neste(t, tilbake="") -%}
+  {% if t.status == "generert" %}
+    {{ knapp(t, "sendt", "Marker som sendt" if not tilbake else "Sendt?", tilbake) }}
+  {% elif t.status == "sendt" %}
+    {{ knapp(t, "vunnet", "Vunnet", tilbake) }}{{ knapp(t, "tapt", "Tapt", tilbake) }}
+  {% elif not tilbake %}
+    {{ knapp(t, "sendt", "Angre - tilbake til sendt", tilbake) }}
+  {% endif %}
+{%- endmacro %}

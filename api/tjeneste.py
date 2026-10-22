@@ -1,5 +1,5 @@
 """
-Forretningslogikk for tilbud: oppretting, redigering, henting, markering som sendt.
+Forretningslogikk for tilbud: oppretting, redigering, henting, status (sendt/vunnet/tapt).
 
 Rollemodellen:
   selger  - ser og lager sine egne tilbud
@@ -277,24 +277,43 @@ def hent_tilbud(bruker: Dict, tilbud_id: int) -> Optional[Dict]:
         conn.close()
 
 
-def marker_sendt(bruker: Dict, tilbud_id: int) -> bool:
+STATUSER = ("generert", "sendt", "vunnet", "tapt")
+
+
+def sett_status(bruker: Dict, tilbud_id: int, status: str) -> bool:
     """
-    Systemet kan ikke vite nar selgeren har sendt fra egen e-post, sa dette
-    er manuelt. Uten det ville listen vist «laget», ikke «sendt», og
-    ledelsen fatt tall som er hoyere enn virkeligheten.
+    «Sendt» er selvrapportert: systemet ser ikke e-posten selgeren sender fra
+    sitt eget program. «Vunnet»/«tapt» (lagt til 22.10.2026) er utfallet, og
+    forutsetter at tilbudet er sendt - sendt_at settes derfor også om den
+    mangler. Tilbake til «sendt» er angre-knappen og nullstiller avgjørelsen.
     """
-    t = hent_tilbud(bruker, tilbud_id)
-    if not t:
+    if status not in STATUSER[1:]:
+        raise ValueError(f"Ukjent status: {status}")
+    if not hent_tilbud(bruker, tilbud_id):
         return False
     conn = tilbud_db()
     try:
         cur = conn.cursor()
         cur.execute(
-            "UPDATE tilbud SET status='sendt', sendt_at=NOW() WHERE id=%s AND status<>'sendt'",
-            (tilbud_id,))
+            """UPDATE tilbud SET status=%s,
+                      sendt_at=COALESCE(sendt_at, NOW()),
+                      avgjort_at=IF(%s IN ('vunnet','tapt'), NOW(), NULL)
+                WHERE id=%s""",
+            (status, status, tilbud_id))
         return True
     finally:
         conn.close()
+
+
+def oppsummering(tilbud: List[Dict]) -> Dict:
+    """Antall og sum eks. mva per status, for toppen av oversikten."""
+    ut = {s: {"antall": 0, "sum": Decimal("0")} for s in STATUSER}
+    for t in tilbud:
+        ut[t["status"]]["antall"] += 1
+        ut[t["status"]]["sum"] += Decimal(str(t["sum_eks_mva"]))
+    avgjort = ut["vunnet"]["antall"] + ut["tapt"]["antall"]
+    ut["treff"] = round(100 * ut["vunnet"]["antall"] / avgjort) if avgjort else None
+    return ut
 
 
 # ------------------------------------------------------------ brukeradmin

@@ -1,8 +1,22 @@
 {% extends "base.html" %}{% block tittel %}Oversikt{% endblock %}
 {% block innhold %}
+{% import "_status.html" as st %}
 <h1>{% if ser_alle %}Alle tilbud{% else %}Mine tilbud{% endif %}</h1>
+{% if tilbud and oppsummering %}
+{% set o = oppsummering %}
+<div class="kort" style="display:grid;gap:1.25rem 2rem;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+  {% for s in ("generert", "sendt", "vunnet", "tapt") %}
+  <div>{{ st.merke(s) }}<div style="font-size:1.4rem;font-weight:700;margin-top:.2rem">{{ o[s].antall }}</div>
+    <div style="color:#6b7280;font-size:.8rem">{{ o[s].sum|kr }} kr eks. mva</div></div>
+  {% endfor %}
+  <div><label style="margin:0">Treffprosent</label>
+    <div style="font-size:1.4rem;font-weight:700">{{ "%d %%"|format(o.treff) if o.treff is not none else "—" }}</div>
+    <div style="color:#6b7280;font-size:.8rem">vunnet av avgjorte</div></div>
+</div>
+{% endif %}
 <div class="kort">
   {% if tilbud %}
+  <div style="overflow-x:auto">
   <table>
     <thead><tr>
       <th>Tilbudsnr.</th><th>Kunde</th>{% if ser_alle %}<th>Selger</th>{% endif %}
@@ -17,17 +31,18 @@
         {% if ser_alle %}<td>{{ t.selger_navn or t.selger_epost }}</td>{% endif %}
         <td>{{ t.created_at.strftime("%d.%m.%Y") }}</td>
         <td class="tall">{{ t.sum_eks_mva|kr }}</td>
-        <td><span class="merkelapp m-{{ t.status }}">{{ t.status }}</span></td>
+        <td style="white-space:nowrap">{{ st.merke(t.status) }}
+          {% if t.status in ("generert", "sendt") %}<div style="margin-top:.35rem">{{ st.neste(t, "oversikt") }}</div>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
+  </div>
   <p style="color:#6b7280;font-size:.85rem;margin:1rem 0 0">
     Tilbudet sendes <strong>bare til selgeren selv</strong> — aldri til kunden.
-    «Generert» betyr at dokumentet er laget og ligger i selgerens innboks.
-    «Sendt» er en avkryssing selgeren gjør etter å ha sendt det videre fra sitt
-    eget e-postprogram; den e-posten ser ikke systemet, så statusen er
-    selvrapportert.</p>
+    «Ikke sendt» betyr at dokumentet er laget og ligger i selgerens innboks.
+    «Sendt», «vunnet» og «tapt» krysser selgeren av selv - systemet ser ikke
+    e-posten til kunden, så statusen er selvrapportert.</p>
   {% else %}
   <div class="tom"><p>Ingen tilbud ennå.</p><a class="knapp" href="/nytt">Lag det første</a></div>
   {% endif %}

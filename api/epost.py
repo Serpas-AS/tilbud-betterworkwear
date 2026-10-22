@@ -17,6 +17,7 @@ Er SMTP_PASSWORD tom, sendes ingenting og funksjonene returnerer False.
 Tjenesten skal fortsatt virke: dokumentet er generert og kan lastes ned i
 UI-et. En manglende e-postnokkel skal ikke miste et tilbud selgeren har laget.
 """
+import html as htmllib
 import logging
 import os
 import smtplib
@@ -131,12 +132,18 @@ def send_innloggingskode(til: str, kode: str) -> bool:
       </div>""")
 
 
-def send_tilbud(til: str, tilbudsnr: str, kunde: str, docx_sti: str) -> bool:
+def send_tilbud(til: str, tilbudsnr: str, kunde: str, docx_sti: str, lenke: str = "") -> bool:
+    # Kundenavnet er fritekst fra skjemaet - escapes før det settes inn i HTML-en.
+    k = htmllib.escape(kunde or "")
+    knapp = (f'''<p><a href="{htmllib.escape(lenke)}" style="display:inline-block;background:#12100c;
+           color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">
+           Åpne tilbudet</a></p>''' if lenke else "")
     return _send(til, f"Tilbud {tilbudsnr} — {kunde or 'uten kundenavn'}", f"""
       <div style="font-family:system-ui,sans-serif;max-width:520px;margin:32px auto">
-        <p>Tilbud <strong>{tilbudsnr}</strong>{f' til {kunde}' if kunde else ''} er klart.</p>
+        <p>Tilbud <strong>{tilbudsnr}</strong>{f' til {k}' if k else ''} er klart.</p>
         <p>Dokumentet ligger vedlagt som Word-fil. Gjør de justeringene du vil,
            og send det videre til kunden.</p>
-        <p style="color:#888;font-size:13px">Husk å markere tilbudet som sendt i
-           oversikten når det har gått ut — det er slik listen holder seg ærlig.</p>
+        {knapp}
+        <p style="color:#888;font-size:13px">Når det har gått ut: marker tilbudet som sendt,
+           og senere som vunnet eller tapt. Da ser ledelsen hva som faktisk ble salg.</p>
       </div>""", vedlegg=(docx_sti, f"Tilbud-{tilbudsnr}.docx"))

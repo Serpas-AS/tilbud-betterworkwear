@@ -185,9 +185,11 @@ async def oversikt(request: Request):
     bruker = innlogget(request)
     if not bruker:
         return RedirectResponse("/login", status_code=303)
+    tilbud = tjeneste.synlige_tilbud(bruker)
     return templates.TemplateResponse(request, "liste.html", {
         "request": request, "bruker": bruker,
-        "tilbud": tjeneste.synlige_tilbud(bruker),
+        "tilbud": tilbud,
+        "oppsummering": tjeneste.oppsummering(tilbud),
         "ser_alle": bruker["rolle"] in tjeneste.SER_ALLE,
     })
 
@@ -294,7 +296,8 @@ async def opprett(request: Request):
         return JSONResponse({"feil": str(e)}, status_code=400)
 
     sendt = data.get("send_epost", True) and epost.send_tilbud(
-        bruker["email"], t["tilbudsnr"], t["kunde_firma"], t["docx_path"])
+        bruker["email"], t["tilbudsnr"], t["kunde_firma"], t["docx_path"],
+        lenke=f"{NETTSTED}/tilbud/{t['id']}")
     return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})
 
 
@@ -388,7 +391,8 @@ async def lagre_endring(request: Request, tilbud_id: int):
     # Til den som redigerte - det er den som skal sende det videre nå.
     # «Lagre» i skjemaet sender send_epost=false: bare lagring, ingen e-post.
     sendt = data.get("send_epost", True) and epost.send_tilbud(
-        bruker["email"], t["tilbudsnr"], t["kunde_firma"], t["docx_path"])
+        bruker["email"], t["tilbudsnr"], t["kunde_firma"], t["docx_path"],
+        lenke=f"{NETTSTED}/tilbud/{t['id']}")
     return JSONResponse({"id": t["id"], "tilbudsnr": t["tilbudsnr"], "epost_sendt": sendt})
 
 
@@ -432,12 +436,17 @@ async def last_ned_xlsx(request: Request, tilbud_id: int):
         headers={"Content-Disposition": f'attachment; filename="Tilbud-{t["tilbudsnr"]}.xlsx"'})
 
 
-@app.post("/tilbud/{tilbud_id}/sendt")
-async def sett_sendt(request: Request, tilbud_id: int):
+@app.post("/tilbud/{tilbud_id}/status")
+async def sett_status(request: Request, tilbud_id: int, status: str = Form(...),
+                      tilbake: str = Form("")):
     bruker = _krev(request)
-    if not tjeneste.marker_sendt(bruker, tilbud_id):
+    if status not in tjeneste.STATUSER[1:]:
+        raise HTTPException(status_code=400, detail="Ukjent status")
+    if not tjeneste.sett_status(bruker, tilbud_id, status):
         raise HTTPException(status_code=404, detail="Tilbudet finnes ikke")
-    return RedirectResponse(f"/tilbud/{tilbud_id}", status_code=303)
+    # Bare tilbake til oversikten eller tilbudet selv - aldri en adresse fra skjemaet.
+    return RedirectResponse("/" if tilbake == "oversikt" else f"/tilbud/{tilbud_id}",
+                            status_code=303)
 
 
 @app.get("/frisk")
