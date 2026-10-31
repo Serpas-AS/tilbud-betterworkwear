@@ -83,6 +83,10 @@ td.tall,th.tall{text-align:right;font-variant-numeric:tabular-nums;white-space:n
 td.lenke a{font-weight:600;text-decoration:none}
 td.lenke a:hover{text-decoration:underline}
 td.ikke-bryt{white-space:nowrap}
+.brukertabell{min-width:1000px}
+.brukertabell th,.brukertabell td{padding-left:8px;padding-right:8px}
+.brukertabell select{width:auto;max-width:100%}
+.brukertabell input{min-width:7.5rem}
 .under{display:block;color:var(--dempet);font-size:.85rem}
 .sum-rad td{font-size:1.05rem;font-weight:700}
 .rabatt-tall{color:var(--rod)}

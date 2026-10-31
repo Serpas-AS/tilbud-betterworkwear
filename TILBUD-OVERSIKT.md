@@ -74,7 +74,7 @@ NOTAT.md        Utviklingslogg med begrunnelser (deler av den er utdatert, se de
 | Tjeneste | `tilbud.service`, bruker `tilbudweb`, `uvicorn api.main:app --host 127.0.0.1 --port 8002`, én prosess |
 | Sandkasse | `ProtectSystem=strict`, bare `generert/` og `bildecache/` er skrivbare |
 | nginx | TLS med certbot, `proxy_pass` til 8002, ratebegrensning på `/login*` (10 POST/min per IP) |
-| Database | `tilbud` (lese og skrive) pluss `SELECT` på fire tabeller i `bww_web` |
+| Database | `tilbud` (lese og skrive) pluss `SELECT` på fire tabeller og utvalgte kolonner i `stores` i `bww_web` |
 | Bilder | Leses fra nettbutikkens mappe på samme server, lesetilgang via ACL |
 | E-post | Mailgun EU, HTTP-API foretrekkes, SMTP som reserve |
 | Eksterne avhengigheter | Mailgun, og produktsidene ved lenkeoppslag |
@@ -139,6 +139,7 @@ CREATE TABLE users (
   telefon VARCHAR(40) NOT NULL DEFAULT '',
   rolle ENUM('selger','ledelse','admin') NOT NULL DEFAULT 'selger',
   is_active TINYINT(1) NOT NULL DEFAULT 1,
+  butikk_id INT DEFAULT NULL,  -- bww_web.stores.id
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -160,6 +161,7 @@ CREATE TABLE tilbud (
   kunde_epost VARCHAR(190) NOT NULL DEFAULT '',
   kunde_telefon VARCHAR(40) NOT NULL DEFAULT '',
   notat TEXT,
+  butikk VARCHAR(500) NOT NULL DEFAULT '',  -- navn og adresse, frosset
   sum_eks_mva DECIMAL(12,2) NOT NULL DEFAULT 0,
   sum_mva DECIMAL(12,2) NOT NULL DEFAULT 0,
   sum_inkl_mva DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -224,7 +226,7 @@ Den enkleste demoen er å lage de fire katalogtabellene med oppdiktede varer i e
 
 ## 4. Produktdata og bilder
 
-**Hovedkilden er nettbutikkens base `bww_web`.** Tjenesten har bare `SELECT` på fire tabeller.
+**Hovedkilden er nettbutikkens base `bww_web`.** Tjenesten har bare `SELECT` på fire tabeller, pluss navn og adresse i `stores`.
 Nettbutikken (`/var/www/ny.betterworkwear.no`, eget prosjekt) eier dataene. Tilbudsløsningen har ingen egen synk,
 kopi, cache av produktdata eller planlagt jobb. Den leser katalogen direkte ved hvert søk.
 
