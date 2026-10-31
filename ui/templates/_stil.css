@@ -31,7 +31,7 @@ p{margin:0 0 .75rem}
   color:#c9c6bb;text-decoration:none;font-weight:500}
 .meny nav a:hover,.meny-bunn a:hover{background:rgba(255,255,255,.08);color:#fff}
 .meny nav a[aria-current=page]{background:rgba(255,255,255,.12);color:#fff;box-shadow:inset 3px 0 0 var(--gul)}
-.meny svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.meny nav svg,.meny-bunn svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .meny :focus-visible{outline-color:var(--gul)}
 .meny-bunn{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:2px}
 .meg{padding:0 12px 6px;font-size:.84rem;color:#fff;overflow:hidden}
