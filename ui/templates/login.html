@@ -28,6 +28,16 @@
         <button class="knapp" type="submit">Logg inn</button>
         <p class="bytt"><a href="/login">Bytt e-post</a></p>
       </form>
+      <script>
+      // Logger inn straks hele koden er på plass, skrevet eller limt inn. Serveren vil ha den med
+      // bindestrek, så den settes inn her - uten den ble en ellers riktig kode avvist.
+      document.getElementById('k').addEventListener('input', e => {
+        const tegn = e.target.value.replace(/[^a-z0-9]/gi, '').toUpperCase();
+        if (tegn.length !== 8) return;
+        e.target.value = tegn.slice(0, 4) + '-' + tegn.slice(4);
+        e.target.form.requestSubmit();
+      });
+      </script>
     {% endif %}
   </div>
   <p class="bunn"><a href="https://www.betterworkwear.no" rel="noopener">betterworkwear.no</a></p>
