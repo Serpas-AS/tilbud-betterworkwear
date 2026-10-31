@@ -35,7 +35,7 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 > **03.10.2026, sikkerhet:** kjører som egen bruker `tilbudweb` (ikke `www-data`) i systemd-sandkasse;
 > koden eies av root, bare `generert/` og `bildecache/` er skrivbare (0750/0640). Katalogbildene i
 > ny-bww leses via ACL. Alle POST krever `Origin: https://tilbud.betterworkwear.no` (CSRF), økter
-> utløper etter 12 t på serveren, Word-malen rendres med `autoescape=True`. Ingen tilgang til `bbw`.
+> utløper etter 12 t på serveren (30 dager fra 31.10.2026), Word-malen rendres med `autoescape=True`. Ingen tilgang til `bbw`.
 > Koden ligger i lokalt git. Gjennomgang og backup: `/root/tilbud-sikkerhet-2026-10-03/`.
 
 > **03.10.2026: katalogen leses fra `bww_web`, ikke Magento (`bbw`).** betterworkwear.no

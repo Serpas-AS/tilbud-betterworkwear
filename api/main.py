@@ -64,7 +64,7 @@ templates.env.filters["prosent"] = lambda v: (
     f"{Decimal(str(v)):.2f}".rstrip("0").rstrip(".") if v is not None else "")
 
 _signer = URLSafeTimedSerializer(os.environ["TILBUD_SECRET_KEY"], salt="okt")
-OKT_SEKUNDER = 60 * 60 * 12   # håndheves også på serveren, ikke bare som cookie-levetid i nettleseren
+OKT_SEKUNDER = 60 * 60 * 24 * 30   # håndheves også på serveren, ikke bare som cookie-levetid i nettleseren
 COOKIE = "tilbud_okt"
 KODE_TEGN = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"   # uten I/O/0/1 - leses hoyt over telefon
 KODE_MINUTTER = 10

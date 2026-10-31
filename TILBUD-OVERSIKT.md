@@ -366,7 +366,7 @@ tilbudsløsning. Rabattprosenten regnes mot veil. pris. Størrelser, farge og ka
 ## 7. Innlogging, roller og tilgang
 
 **Innlogging** er passordløs engangskode på e-post. Det er ingen selvregistrering. Økten er en signert cookie
-(`httponly`, `secure`, `samesite=lax`), gyldig i 12 timer, men brukeren leses fra databasen ved hver forespørsel.
+(`httponly`, `secure`, `samesite=lax`), gyldig i 30 dager, men brukeren leses fra databasen ved hver forespørsel.
 En deaktivering virker derfor med en gang.
 
 | Handling | selger | ledelse | admin |
