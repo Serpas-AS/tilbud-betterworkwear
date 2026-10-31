@@ -7,10 +7,12 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 ## ▶ START HER
 
 > **31.10.2026: butikk på selgeren.** Under Brukere velges butikk (`users.butikk_id`, peker på `bww_web.stores`).
-> Navn og adresse fryses på tilbudet (`tilbud.butikk`, flere linjer) og står under «Vår kontaktperson» i Word
+> Navn og adresse fryses på tilbudet (`tilbud.butikk`, flere linjer) og står i egen kolonne i Word
 > (`butikk_tekst`, se `maler/butikklinje.py`). Bytter selgeren butikk, står gamle tilbud urørt; tilbud uten
 > butikk får den første gang de redigeres. Krever SELECT på utvalgte kolonner i `bww_web.stores`.
 > Word er fortsatt eneste format; PDF lager selgeren selv fra Word.
+> Samme dag: Kunde, Vår kontaktperson og Butikk i hver sin kolonne, navnet fett, ingen hull der felt mangler,
+> og A4 i stedet for Letter (`maler/kontaktblokk.py`). Allerede lagde dokumenter endres først når tilbudet lagres på nytt.
 >
 > **31.10.2026: nytt utseende** etter serpas-admin (mørk sidemeny, gult som aksent). Alt stilark ligger i
 > `ui/templates/_stil.css`, tatt inn i `base.html` med `include` (appen har ingen /static-rute, og slik går
