@@ -162,11 +162,12 @@ def opprett_tilbud(bruker: Dict, kunde: Dict, varelinjer: List[Dict],
         nr = _neste_tilbudsnr(cur)
         cur.execute(
             """INSERT INTO tilbud (tilbudsnr,user_id,kunde_firma,kunde_kontakt,
-                                   kunde_epost,kunde_telefon,notat,
+                                   kunde_epost,kunde_telefon,notat,butikk,
                                    sum_eks_mva,sum_mva,sum_inkl_mva)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (nr, bruker["id"], kunde.get("firma",""), kunde.get("kontakt",""),
              kunde.get("epost",""), kunde.get("telefon",""), notat,
+             katalog.butikk_tekst(bruker.get("butikk_id")),
              totaler["sum_eks_mva"], totaler["sum_mva"], totaler["sum_inkl_mva"]),
         )
         tilbud_id = cur.lastrowid
@@ -217,6 +218,11 @@ def oppdater_tilbud(bruker: Dict, tilbud_id: int, kunde: Dict, varelinjer: List[
         rad = cur.fetchone()
         cur.execute("SELECT * FROM users WHERE id=%s", (rad["user_id"],))
         selger = cur.fetchone()
+        # Butikken står fast når den først er på tilbudet. Tilbud fra før selgeren
+        # fikk butikk, får den første gang de redigeres.
+        if not rad["butikk"]:
+            rad["butikk"] = katalog.butikk_tekst(selger.get("butikk_id"))
+            cur.execute("UPDATE tilbud SET butikk=%s WHERE id=%s", (rad["butikk"], tilbud_id))
 
         # Dokumentet lages før commit: feiler det, rulles endringen tilbake og
         # det gamle dokumentet passer fortsatt til det som står i basen.
@@ -358,8 +364,15 @@ def _antall_aktive_admin(cur, utenom_id: Optional[int] = None) -> int:
     return cur.fetchone()["c"]
 
 
-def opprett_bruker(bruker: Dict, epost: str, navn: str, telefon: str, rolle: str) -> Dict:
+def _sjekk_butikk(butikk_id: Optional[int]) -> None:
+    if butikk_id and not katalog.butikk_tekst(butikk_id):
+        raise BrukerFeil("Butikken finnes ikke.")
+
+
+def opprett_bruker(bruker: Dict, epost: str, navn: str, telefon: str, rolle: str,
+                   butikk_id: Optional[int] = None) -> Dict:
     _krev_admin(bruker)
+    _sjekk_butikk(butikk_id)
     epost = (epost or "").strip().lower()
     if "@" not in epost or len(epost) < 5:
         raise BrukerFeil("Ugyldig e-postadresse.")
@@ -373,8 +386,8 @@ def opprett_bruker(bruker: Dict, epost: str, navn: str, telefon: str, rolle: str
         if cur.fetchone():
             raise BrukerFeil(f"{epost} finnes allerede.")
         cur.execute(
-            "INSERT INTO users (email,navn,telefon,rolle) VALUES (%s,%s,%s,%s)",
-            (epost, (navn or "").strip(), (telefon or "").strip(), rolle))
+            "INSERT INTO users (email,navn,telefon,rolle,butikk_id) VALUES (%s,%s,%s,%s,%s)",
+            (epost, (navn or "").strip(), (telefon or "").strip(), rolle, butikk_id))
         cur.execute("SELECT * FROM users WHERE id=%s", (cur.lastrowid,))
         return cur.fetchone()
     finally:
@@ -382,7 +395,7 @@ def opprett_bruker(bruker: Dict, epost: str, navn: str, telefon: str, rolle: str
 
 
 def oppdater_bruker(bruker: Dict, bruker_id: int, navn: str, telefon: str,
-                    rolle: str, aktiv: bool) -> None:
+                    rolle: str, aktiv: bool, butikk_id: Optional[int] = None) -> None:
     """
     Sperre mot utestenging: den SISTE aktive administratoren kan verken
     fratas admin-rollen eller deaktiveres. Uten den kan en feilklikk gjore
@@ -391,6 +404,7 @@ def oppdater_bruker(bruker: Dict, bruker_id: int, navn: str, telefon: str,
     _krev_admin(bruker)
     if rolle not in ROLLER:
         raise BrukerFeil(f"Ukjent rolle: {rolle}")
+    _sjekk_butikk(butikk_id)
 
     conn = tilbud_db()
     try:
@@ -408,7 +422,8 @@ def oppdater_bruker(bruker: Dict, bruker_id: int, navn: str, telefon: str,
                 "administrator først, ellers kan ingen lenger legge til brukere.")
 
         cur.execute(
-            "UPDATE users SET navn=%s, telefon=%s, rolle=%s, is_active=%s WHERE id=%s",
-            ((navn or "").strip(), (telefon or "").strip(), rolle, 1 if aktiv else 0, bruker_id))
+            "UPDATE users SET navn=%s, telefon=%s, rolle=%s, is_active=%s, butikk_id=%s WHERE id=%s",
+            ((navn or "").strip(), (telefon or "").strip(), rolle, 1 if aktiv else 0,
+             butikk_id, bruker_id))
     finally:
         conn.close()

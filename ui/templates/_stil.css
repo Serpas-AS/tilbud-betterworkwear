@@ -68,6 +68,7 @@ p{margin:0 0 .75rem}
 .etikett{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--dempet);margin:0 0 4px}
 .fakta strong{font-weight:600}
 .status-knapper{margin-top:.6rem}
+.butikk{margin-top:.5rem;white-space:pre-line;color:var(--dempet)}
 
 /* Tabeller */
 .rull{overflow-x:auto;background:var(--kort);border:1px solid var(--linje);border-radius:var(--radius);box-shadow:var(--skygge);margin-bottom:18px}

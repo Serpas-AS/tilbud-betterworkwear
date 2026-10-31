@@ -21,18 +21,27 @@
           <option value="admin">Administrator — ser alle, styrer brukere</option>
         </select></div>
     </div>
+    {% if butikker is defined %}
+    <div class="rad rad-2">
+      <div><label for="b">Butikk</label>
+        <select id="b" name="butikk_id">
+          <option value="">Ingen butikk</option>
+          {% for b in butikker %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select></div>
+    </div>
+    {% endif %}
     <button class="knapp" type="submit">Legg til</button>
   </form>
   <p class="hjelp">
     Det sendes ingen invitasjon. Brukeren logger inn selv på
     <strong>tilbud.betterworkwear.no</strong> ved å be om en engangskode på e-post.
-    Navn og telefon havner på tilbudsdokumentene de lager, så de er verdt å fylle ut.</p>
+    Navn, telefon og butikk havner på tilbudsdokumentene de lager, så de er verdt å fylle ut.</p>
 </div>
 
 <div class="rull">
   <table class="brukertabell">
     <thead><tr>
-      <th>E-post</th><th>Navn</th><th>Telefon</th><th>Rolle</th>
+      <th>E-post</th><th>Navn</th><th>Telefon</th>{% if butikker is defined %}<th>Butikk</th>{% endif %}<th>Rolle</th>
       <th class="tall">Tilbud</th><th>Aktiv</th><th></th>
     </tr></thead>
     <tbody>
@@ -43,6 +52,14 @@
             <span class="under">det er deg</span>{% endif %}</td>
         <td><input name="navn" value="{{ u.navn }}"></td>
         <td><input name="telefon" value="{{ u.telefon }}"></td>
+        {% if butikker is defined %}
+        <td><select name="butikk_id" aria-label="Butikk">
+              <option value="">Ingen</option>
+              {% for b in butikker %}
+                <option value="{{ b.id }}"{% if u.butikk_id == b.id %} selected{% endif %}>{{ b.name }}</option>
+              {% endfor %}
+            </select></td>
+        {% endif %}
         <td><select name="rolle">
               {% for r in roller %}
                 <option value="{{ r }}"{% if u.rolle == r %} selected{% endif %}>{{ r }}</option>

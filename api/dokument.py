@@ -120,6 +120,8 @@ def generer(tilbud: Dict, linjer: List[Dict], selger: Dict) -> str:
         "selger_navn": selger.get("navn") or selger["email"],
         "selger_epost": selger["email"],
         "selger_telefon": selger.get("telefon") or "",
+        # Frosset på tilbudet, som prisene. Linjeskiftet først: se maler/butikklinje.py.
+        "butikk_tekst": f"\n{tilbud['butikk']}" if tilbud.get("butikk") else "",
         "linjer": [{
             "bilde": _bilde(doc, l),
             "sku": l["sku"],

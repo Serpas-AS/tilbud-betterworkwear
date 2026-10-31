@@ -122,6 +122,39 @@ def sok(term: str, limit: int = 25) -> List[Dict]:
     return _berik(rows)
 
 
+def butikker() -> List[Dict]:
+    """Aktive butikker til nedtrekkslista under Brukere."""
+    conn = katalog_db()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT id, name FROM stores WHERE is_active = 1 ORDER BY name")
+        return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def butikk_tekst(butikk_id: Optional[int]) -> str:
+    """
+    Navn og adresse på én butikk, én linje per ledd, slik det skal stå i tilbudet.
+
+    Som `hent()` uten aktiv-filter: en selger skal ikke få tilbud uten adresse
+    fordi butikken er tatt av nettsiden.
+    """
+    if not butikk_id:
+        return ""
+    conn = katalog_db()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT name, street, postcode, city FROM stores WHERE id = %s", (butikk_id,))
+        b = cur.fetchone()
+    finally:
+        conn.close()
+    if not b:
+        return ""
+    poststed = " ".join(v for v in (b["postcode"], b["city"]) if v)
+    return "\n".join(v for v in (b["name"], b["street"], poststed) if v)
+
+
 def dataark(produkt_ids: List[int]) -> Dict[int, Dict[str, str]]:
     """
     Beskrivende produktdata til databladene bakerst i tilbudet.

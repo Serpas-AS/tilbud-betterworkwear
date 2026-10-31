@@ -5,9 +5,9 @@ To adskilte tilkoblinger med vilje:
   tilbud_db()  - egen base, full skrivetilgang
   katalog_db() - nettbutikkens katalog (bww_web), KUN lesetilgang
 
-MySQL-brukeren `tilbud` har bare `SELECT` på de tre katalogtabellene i bww_web
-(products, product_variants, product_images) - ikke på ordrer, kunder eller
-admin-tabellene der. Et skrivekall mot katalogen feiler med ERROR 1142 uansett
+MySQL-brukeren `tilbud` har bare `SELECT` på katalogtabellene i bww_web (products,
+product_variants, product_images, categories) og på navn og adresse i stores -
+ikke på ordrer, kunder eller admin-tabellene der. Et skrivekall mot katalogen feiler med ERROR 1142 uansett
 hva koden her skulle finne på.
 Det er en bevisst siste skanse - ikke fjern den ved å gi brukeren mer.
 """

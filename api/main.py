@@ -467,17 +467,23 @@ async def brukere(request: Request, feil: str = "", ok: str = ""):
         raise HTTPException(status_code=403, detail="Krever administrator")
     return templates.TemplateResponse(request, "brukere.html", {
         "request": request, "bruker": bruker, "brukere": liste,
-        "roller": tjeneste.ROLLER, "feil": feil, "ok": ok,
+        "roller": tjeneste.ROLLER, "butikker": katalog.butikker(), "feil": feil, "ok": ok,
     })
+
+
+def _butikk_id(verdi: str) -> Optional[int]:
+    """Tomt valg = ingen butikk. Tullverdier fanges av tjeneste._sjekk_butikk."""
+    return int(verdi) if verdi.isdigit() else None
 
 
 @app.post("/brukere")
 async def ny_bruker(request: Request, epost_adr: str = Form(..., alias="epost"),
                     navn: str = Form(""), telefon: str = Form(""),
-                    rolle: str = Form("selger")):
+                    rolle: str = Form("selger"), butikk_id: str = Form("")):
     bruker = _krev(request)
     try:
-        ny = tjeneste.opprett_bruker(bruker, epost_adr, navn, telefon, rolle)
+        ny = tjeneste.opprett_bruker(bruker, epost_adr, navn, telefon, rolle,
+                                     _butikk_id(butikk_id))
     except TilgangFeil:
         raise HTTPException(status_code=403, detail="Krever administrator")
     except BrukerFeil as e:
@@ -489,10 +495,11 @@ async def ny_bruker(request: Request, epost_adr: str = Form(..., alias="epost"),
 @app.post("/brukere/{bruker_id}")
 async def endre_bruker(request: Request, bruker_id: int, navn: str = Form(""),
                        telefon: str = Form(""), rolle: str = Form("selger"),
-                       aktiv: str = Form("")):
+                       aktiv: str = Form(""), butikk_id: str = Form("")):
     bruker = _krev(request)
     try:
-        tjeneste.oppdater_bruker(bruker, bruker_id, navn, telefon, rolle, aktiv == "1")
+        tjeneste.oppdater_bruker(bruker, bruker_id, navn, telefon, rolle, aktiv == "1",
+                                 _butikk_id(butikk_id))
     except TilgangFeil:
         raise HTTPException(status_code=403, detail="Krever administrator")
     except BrukerFeil as e:

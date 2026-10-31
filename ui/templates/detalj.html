@@ -37,7 +37,8 @@ document.getElementById('last-ned').addEventListener('click', () => {
     {% for v in (t.kunde_kontakt, t.kunde_epost, t.kunde_telefon) if v %}<br>{{ v }}{% endfor %}</div>
   <div><p class="etikett">Selger</p>
     <strong>{{ t.selger_navn or t.selger_epost }}</strong><br>{{ t.selger_epost }}
-    {% if t.selger_telefon %}<br>{{ t.selger_telefon }}{% endif %}</div>
+    {% if t.selger_telefon %}<br>{{ t.selger_telefon }}{% endif %}
+    {% if t.butikk %}<div class="butikk">{{ t.butikk }}</div>{% endif %}</div>
   <div><p class="etikett">Status</p>
     {% if t.status == "generert" %}Ikke markert som sendt til kunden.
     {% else %}Sendt {{ t.sendt_at.strftime("%d.%m.%Y") }}{% if t.avgjort_at %},
