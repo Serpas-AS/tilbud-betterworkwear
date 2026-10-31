@@ -1,0 +1,222 @@
+/* Felles stilark. Tas inn i base.html med include, ikke som egen fil: appen har ingen /static-rute,
+   og malene går live uten omstart, så stilen kommer alltid sammen med markupen som bruker den.
+   Samme profil som tilbudsdokumentet: svart, varmt grått og gult som aksent, ikke som flate. */
+:root{
+  --mork:#14130f;--mork-2:#2a2822;--gul:#ffcf0d;--tekst:#1f1e1a;--dempet:#6b695f;--linje:#e7e5de;--felt:#cfccc2;
+  --flate:#f6f5f1;--kort:#fff;--gronn:#17804f;--gronn-lys:#e7f4ec;--rod:#b3261e;--rod-lys:#fdecea;
+  --bla:#1d4ed8;--bla-lys:#eaf0fe;--gul-lys:#fff8db;
+  --radius:10px;--radius-liten:7px;--meny:224px;
+  --skygge:0 1px 2px rgba(30,28,20,.05),0 1px 3px rgba(30,28,20,.07);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--tekst);background:var(--flate)}
+a{color:inherit;text-underline-offset:2px}
+h1{font-size:1.55rem;line-height:1.25;letter-spacing:-.01em;margin:0}
+h2{font-size:1rem;margin:0 0 .9rem}
+p{margin:0 0 .75rem}
+:focus-visible{outline:2px solid var(--mork);outline-offset:2px}
+[hidden]{display:none!important}
+.logo{color:#12100c}
+
+/* Ramme og meny */
+.meny{position:fixed;inset:0 auto 0 0;width:var(--meny);display:flex;flex-direction:column;gap:4px;
+  padding:20px 12px 14px;background:var(--mork);color:#fff;overflow-y:auto;z-index:10}
+.merke{display:block;margin:0 0 20px;padding:2px 12px 0;text-decoration:none;color:#fff}
+.merke .logo{display:block;width:100%;max-width:168px;height:auto;color:#fff}
+.merke span{display:block;margin-top:8px;font-size:.68rem;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gul)}
+.meny nav{display:flex;flex-direction:column;gap:2px}
+.meny nav a,.meny-bunn a{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:var(--radius-liten);
+  color:#c9c6bb;text-decoration:none;font-weight:500}
+.meny nav a:hover,.meny-bunn a:hover{background:rgba(255,255,255,.08);color:#fff}
+.meny nav a[aria-current=page]{background:rgba(255,255,255,.12);color:#fff;box-shadow:inset 3px 0 0 var(--gul)}
+.meny svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.meny :focus-visible{outline-color:var(--gul)}
+.meny-bunn{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:2px}
+.meg{padding:0 12px 6px;font-size:.84rem;color:#fff;overflow:hidden}
+.meg span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meg .rolle{color:#99958a;font-size:.78rem}
+.innhold{margin-left:var(--meny);max-width:calc(1120px + var(--meny));padding:30px 40px 56px}
+.ute .innhold{margin:0;max-width:none;padding:0 16px}
+.ute{background:var(--mork);min-height:100vh}
+
+/* Sidetopp */
+.sidetopp{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.sidetopp .tittel{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.handlinger{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tilbake{margin:0 0 6px;font-size:.9rem}
+.tilbake a{color:var(--dempet);text-decoration:none}
+.tilbake a:hover{color:var(--tekst)}
+.ingress{color:var(--dempet);max-width:68ch;margin:-10px 0 18px}
+.dempet{color:var(--dempet)}
+.liten-tekst{font-size:.85rem}
+.hjelp{color:var(--dempet);font-size:.85rem;margin:1rem 0 0;max-width:80ch}
+.hjelp.nedre{margin:-6px 0 18px}
+.feil-tekst{color:var(--rod)}
+
+/* Kort og tall */
+.kort{background:var(--kort);border:1px solid var(--linje);border-radius:var(--radius);box-shadow:var(--skygge);
+  padding:20px 22px;margin-bottom:18px}
+.tallrad{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;list-style:none;padding:0;margin:0 0 18px}
+.tallrad li{background:var(--kort);border:1px solid var(--linje);border-radius:var(--radius);box-shadow:var(--skygge);padding:14px 16px}
+.tallrad strong{display:block;font-size:1.75rem;line-height:1.2;margin-top:6px;font-variant-numeric:tabular-nums}
+.tallrad span.sum{display:block;color:var(--dempet);font-size:.82rem}
+.tall-etikett{font-size:.8rem;font-weight:600;color:var(--dempet)}
+.tallrad .uthevet{border-color:var(--mork);box-shadow:inset 0 3px 0 var(--gul)}
+.fakta{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px 28px}
+.etikett{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--dempet);margin:0 0 4px}
+.fakta strong{font-weight:600}
+.status-knapper{margin-top:.6rem}
+
+/* Tabeller */
+.rull{overflow-x:auto;background:var(--kort);border:1px solid var(--linje);border-radius:var(--radius);box-shadow:var(--skygge);margin-bottom:18px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--linje);vertical-align:top}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--dempet);font-weight:600;background:#fbfaf7;white-space:nowrap}
+tbody tr:hover td{background:#fbfaf7}
+tfoot td{border-bottom:0;padding-top:6px;padding-bottom:6px}
+tfoot tr:first-child td{border-top:1px solid var(--felt);padding-top:12px}
+tfoot tr:last-child td{padding-bottom:14px}
+td.tall,th.tall{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.lenke a{font-weight:600;text-decoration:none}
+td.lenke a:hover{text-decoration:underline}
+td.ikke-bryt{white-space:nowrap}
+.under{display:block;color:var(--dempet);font-size:.85rem}
+.sum-rad td{font-size:1.05rem;font-weight:700}
+.rabatt-tall{color:var(--rod)}
+.inaktiv td{color:var(--dempet)}
+.inaktiv input,.inaktiv select{color:var(--dempet);background:var(--flate)}
+.tom{color:var(--dempet);text-align:center;padding:2.5rem 1rem}
+.tom p{margin-bottom:1rem}
+
+/* Knapper */
+.knapp{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--mork);color:#fff;
+  border:1px solid var(--mork);border-radius:var(--radius-liten);padding:8px 16px;font:inherit;font-weight:600;
+  font-size:.93rem;line-height:1.4;cursor:pointer;text-decoration:none;transition:background .12s,border-color .12s}
+.knapp:hover{background:var(--mork-2);border-color:var(--mork-2);color:#fff}
+.knapp:disabled{opacity:.55;cursor:default}
+.knapp.sekundaer{background:#fff;color:var(--tekst);border-color:var(--felt)}
+.knapp.sekundaer:hover{background:var(--flate);border-color:#a9a598}
+.knapp.liten{padding:2px 10px;font-size:.8rem}
+.statusform{display:inline;margin:0 4px 0 0}
+
+/* Status */
+.merkelapp{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;font-size:.78rem;
+  font-weight:600;white-space:nowrap;background:#efeee9;color:var(--dempet)}
+.merkelapp[class*=" s-"]::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.s-sendt{background:var(--bla-lys);color:var(--bla)}
+.s-vunnet{background:var(--gronn-lys);color:var(--gronn)}
+.s-tapt{background:var(--rod-lys);color:var(--rod)}
+.m-generert{background:var(--gul-lys);color:#6d5508}
+
+/* Skjema */
+input,select,textarea{font:inherit;color:var(--tekst);padding:8px 11px;border:1px solid var(--felt);
+  border-radius:var(--radius-liten);width:100%;background:#fff;transition:border-color .12s,box-shadow .12s}
+input:hover,select:hover,textarea:hover{border-color:#a9a598}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--mork);box-shadow:0 0 0 3px rgba(255,207,13,.45)}
+input:disabled{background:var(--flate);color:var(--dempet)}
+input::placeholder,textarea::placeholder{color:#a5a296}
+input[type=radio]{width:18px;height:18px;margin:0;padding:0;flex:none;accent-color:var(--mork)}
+textarea{line-height:1.45;resize:vertical}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px}
+label .dempet{font-weight:400}
+.rad{display:grid;gap:14px 18px;margin-bottom:14px}
+.rad-2{grid-template-columns:1fr 1fr}
+.valg{display:flex;gap:8px;align-items:center;font-weight:400;font-size:.92rem;margin:0}
+.valgrad{display:flex;gap:6px 20px;flex-wrap:wrap;padding-top:6px}
+.prisvalg .valg{margin-bottom:5px}
+.prisvalg .valg:last-child{margin-bottom:0;color:var(--dempet)}
+.prisvalg input[data-f=rabatt]{width:5rem}
+.prisvalg input[data-f=fastpris]{width:6.5rem}
+.prisvalg span{white-space:nowrap}
+.felt-med-knapp{display:flex;gap:8px}
+.felt-med-knapp input{flex:1;min-width:0}
+.bilderad{display:flex;gap:12px;align-items:flex-end}
+.bilderad > div{flex:1;min-width:0}
+.vare-bilde{width:44px;height:44px;flex:0 0 44px;object-fit:contain;background:#fff;border:1px solid var(--linje);border-radius:6px}
+div.vare-bilde{background:var(--flate)}
+.bilderad .vare-bilde{width:56px;height:56px;flex-basis:56px}
+
+/* Varesøk og linjer */
+#treff{margin-top:6px}
+#treff:empty{display:none}
+.treff-rad{display:flex;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--linje)}
+.treff-rad:last-child{border-bottom:0}
+.treff-tekst{flex:1;min-width:0}
+.treff-pris{color:var(--dempet);white-space:nowrap;text-align:right;font-size:.9rem;font-variant-numeric:tabular-nums}
+.treff-pris span{font-size:.8rem}
+.ekstern{margin-top:16px;border-top:1px solid var(--linje);padding-top:12px}
+.ekstern summary{cursor:pointer;font-weight:600}
+.ekstern[open] summary{margin-bottom:10px}
+.vare{display:flex;gap:10px;align-items:flex-start;min-width:0}
+.vare .vare-bilde{width:40px;height:40px;flex-basis:40px}
+.vare > div{min-width:0}
+.graa{color:var(--dempet);font-weight:400;font-size:.8rem;white-space:nowrap}
+.linjetabell{min-width:760px}
+.linjetabell input[data-f=antall]{text-align:right}
+.linjetabell .k-antall{width:5.5rem}
+.linjetabell .k-veil{width:7.5rem}
+.linjetabell .k-pris{width:15rem}
+.linjetabell .k-sum{width:10rem}
+.linjetabell .k-slett{width:3rem}
+.linjetabell .under-sum{font-weight:400;color:var(--dempet);font-size:.85rem}
+.slett{padding:2px 9px}
+
+/* Meldinger */
+.melding,.feil,.info,.varsel{border:1px solid;border-radius:var(--radius-liten);padding:11px 14px;margin:0 0 16px}
+.melding{background:var(--gronn-lys);border-color:#b9dfc9;color:#0f5233}
+.feil{background:var(--rod-lys);border-color:#f3c2bd;color:#7a1b15}
+.info,.varsel{background:var(--gul-lys);border-color:#f1e0a0;color:var(--tekst)}
+.sporsmal{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.sporsmal .statusform{margin:0}
+.ekstern .varsel{font-size:.85rem}
+
+/* Lagrelinje */
+.lagrelinje{position:sticky;bottom:0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px -40px -56px;
+  padding:13px 40px;background:rgba(255,255,255,.95);border-top:1px solid var(--linje);box-shadow:0 -4px 12px rgba(30,28,20,.05)}
+
+/* Innlogging */
+.innlogging{max-width:400px;margin:0 auto;padding:12vh 0 2rem}
+.innlogging .kort{padding:2rem 1.75rem 1.75rem;border:0}
+.innlogging .logo{display:block;width:220px;max-width:100%;height:auto;margin:0 auto}
+.innlogging .strek{height:2px;background:var(--gul);margin:1.25rem 0 1rem}
+.innlogging .undertittel{text-align:center;font-size:.75rem;font-weight:600;color:var(--dempet);
+  text-transform:uppercase;letter-spacing:.14em;margin:0 0 1.5rem}
+.innlogging h1{font-size:1.2rem;margin:0 0 1rem}
+.innlogging .knapp{width:100%;margin-top:.25rem;padding:10px}
+.innlogging .bytt{text-align:center;margin:.75rem 0 0}
+.innlogging .bytt a{color:var(--dempet)}
+.innlogging .bunn{text-align:center;font-size:.8rem;color:#99958a;margin-top:1rem}
+.innlogging .bunn a{color:inherit}
+.kodefelt{letter-spacing:2px;text-transform:uppercase}
+
+@media(max-width:900px){
+  .meny{position:sticky;top:0;inset:auto;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 14px;overflow:visible}
+  .merke{margin:0;padding:0}
+  .merke .logo{width:112px}
+  .merke span{display:none}
+  .meny nav{order:3;flex-basis:100%;flex-direction:row;overflow-x:auto;scrollbar-width:none}
+  .meny nav a{flex:none;padding:6px 10px;gap:8px}
+  .meny nav a[aria-current=page]{box-shadow:inset 0 -3px 0 var(--gul)}
+  .meny-bunn{margin:0 0 0 auto;padding:0;border:0;flex-direction:row;align-items:center}
+  .meg{display:none}
+  .meny-bunn a{padding:5px 8px}
+  .innhold{margin-left:0;padding:20px 16px 40px}
+  .lagrelinje{margin:18px -16px -40px;padding:11px 16px}
+}
+@media(max-width:760px){
+  .kort{padding:16px 14px}
+  .rad-2{grid-template-columns:1fr}
+  th,td{padding:9px 10px}
+}
+@media(max-width:520px){
+  h1{font-size:1.3rem}
+  .tallrad .uthevet{grid-column:1/-1}
+  .treff-rad{flex-wrap:wrap}
+  .treff-tekst{flex-basis:calc(100% - 56px)}
+  .treff-pris{margin-left:56px;text-align:left}
+  .treff-rad .knapp{margin-left:auto}
+  .lagrelinje .knapp{flex:1 1 auto}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}

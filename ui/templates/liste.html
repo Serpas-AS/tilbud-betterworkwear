@@ -1,22 +1,24 @@
 {% extends "base.html" %}{% block tittel %}Oversikt{% endblock %}
 {% block innhold %}
 {% import "_status.html" as st %}
-<h1>{% if ser_alle %}Alle tilbud{% else %}Mine tilbud{% endif %}</h1>
+<div class="sidetopp">
+  <h1>{% if ser_alle %}Alle tilbud{% else %}Mine tilbud{% endif %}</h1>
+  <a class="knapp" href="/nytt">Nytt tilbud</a>
+</div>
 {% if tilbud and oppsummering %}
 {% set o = oppsummering %}
-<div class="kort" style="display:grid;gap:1.25rem 2rem;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+<ul class="tallrad">
   {% for s in ("generert", "sendt", "vunnet", "tapt") %}
-  <div>{{ st.merke(s) }}<div style="font-size:1.4rem;font-weight:700;margin-top:.2rem">{{ o[s].antall }}</div>
-    <div style="color:#6b7280;font-size:.8rem">{{ o[s].sum|kr }} kr eks. mva</div></div>
+  <li>{{ st.merke(s) }}<strong>{{ o[s].antall }}</strong>
+    <span class="sum">{{ o[s].sum|kr }} kr eks. mva</span></li>
   {% endfor %}
-  <div><label style="margin:0">Treffprosent</label>
-    <div style="font-size:1.4rem;font-weight:700">{{ "%d %%"|format(o.treff) if o.treff is not none else "—" }}</div>
-    <div style="color:#6b7280;font-size:.8rem">vunnet av avgjorte</div></div>
-</div>
+  <li class="uthevet"><span class="tall-etikett">Treffprosent</span>
+    <strong>{{ "%d %%"|format(o.treff) if o.treff is not none else "—" }}</strong>
+    <span class="sum">vunnet av avgjorte</span></li>
+</ul>
 {% endif %}
-<div class="kort">
-  {% if tilbud %}
-  <div style="overflow-x:auto">
+{% if tilbud %}
+<div class="rull">
   <table>
     <thead><tr>
       <th>Tilbudsnr.</th><th>Kunde</th>{% if ser_alle %}<th>Selger</th>{% endif %}
@@ -25,26 +27,24 @@
     <tbody>
     {% for t in tilbud %}
       <tr>
-        <td><a href="/tilbud/{{ t.id }}" style="font-weight:600;color:inherit">{{ t.tilbudsnr }}</a></td>
-        <td>{{ t.kunde_firma or "—" }}{% if t.kunde_kontakt %}<br>
-            <span style="color:#6b7280;font-size:.85rem">{{ t.kunde_kontakt }}</span>{% endif %}</td>
+        <td class="lenke ikke-bryt"><a href="/tilbud/{{ t.id }}">{{ t.tilbudsnr }}</a></td>
+        <td>{{ t.kunde_firma or "—" }}{% if t.kunde_kontakt %}<span class="under">{{ t.kunde_kontakt }}</span>{% endif %}</td>
         {% if ser_alle %}<td>{{ t.selger_navn or t.selger_epost }}</td>{% endif %}
-        <td>{{ t.created_at.strftime("%d.%m.%Y") }}</td>
+        <td class="ikke-bryt">{{ t.created_at.strftime("%d.%m.%Y") }}</td>
         <td class="tall">{{ t.sum_eks_mva|kr }}</td>
-        <td style="white-space:nowrap">{{ st.merke(t.status) }}
-          {% if t.status in ("generert", "sendt") %}<div style="margin-top:.35rem">{{ st.neste(t, "oversikt") }}</div>{% endif %}</td>
+        <td class="ikke-bryt">{{ st.merke(t.status) }}
+          {% if t.status in ("generert", "sendt") %}<div class="status-knapper">{{ st.neste(t, "oversikt") }}</div>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
-  </div>
-  <p style="color:#6b7280;font-size:.85rem;margin:1rem 0 0">
-    Tilbudet sendes <strong>bare til selgeren selv</strong> — aldri til kunden.
-    «Ikke sendt» betyr at dokumentet er laget og ligger i selgerens innboks.
-    «Sendt», «vunnet» og «tapt» krysser selgeren av selv - systemet ser ikke
-    e-posten til kunden, så statusen er selvrapportert.</p>
-  {% else %}
-  <div class="tom"><p>Ingen tilbud ennå.</p><a class="knapp" href="/nytt">Lag det første</a></div>
-  {% endif %}
 </div>
+<p class="hjelp">
+  Tilbudet sendes <strong>bare til selgeren selv</strong> — aldri til kunden.
+  «Ikke sendt» betyr at dokumentet er laget og ligger i selgerens innboks.
+  «Sendt», «vunnet» og «tapt» krysser selgeren av selv - systemet ser ikke
+  e-posten til kunden, så statusen er selvrapportert.</p>
+{% else %}
+<div class="kort tom"><p>Ingen tilbud ennå.</p><a class="knapp" href="/nytt">Lag det første</a></div>
+{% endif %}
 {% endblock %}

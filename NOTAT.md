@@ -6,6 +6,10 @@ Tilbudsgenerator for selgere. Bygget 31.08.2026.
 
 ## ▶ START HER
 
+> **31.10.2026: nytt utseende** etter serpas-admin (mørk sidemeny, gult som aksent). Alt stilark ligger i
+> `ui/templates/_stil.css`, tatt inn i `base.html` med `include` (appen har ingen /static-rute, og slik går
+> stil og markup live samtidig, uten omstart). Ingen `style=` i malene lenger.
+>
 > **22.10.2026: tilbud kan redigeres** («Rediger tilbudet» på tilbudssiden, `/tilbud/{id}/rediger`).
 > Samme skjema som nytt tilbud, ferdig utfylt. Linjer som står igjen beholder de frosne prisene
 > (`linje_id` → `tjeneste.frosset_produkt`); nye varer får dagens pris. Samme tilbudsnr., dato og

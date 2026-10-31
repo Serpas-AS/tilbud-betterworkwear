@@ -1,6 +1,6 @@
 {# Status på et tilbud: merkelapp og knappene for neste steg. Brukes i oversikten og på tilbudssiden.
    generert -> sendt -> vunnet | tapt. «Sendt» er selvrapportert; se tjeneste.sett_status. #}
-{% set TEKST = {"generert": "ikke sendt", "sendt": "sendt", "vunnet": "vunnet", "tapt": "tapt"} %}
+{% set TEKST = {"generert": "Ikke sendt", "sendt": "Sendt", "vunnet": "Vunnet", "tapt": "Tapt"} %}
 
 {% macro merke(status) -%}
   <span class="merkelapp s-{{ status }}">{{ TEKST[status] }}</span>

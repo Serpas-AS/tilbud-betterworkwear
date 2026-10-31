@@ -1,41 +1,67 @@
 {% extends "base.html" %}{% block tittel %}{{ t.tilbudsnr }}{% endblock %}
 {% block innhold %}
 {% import "_status.html" as st %}
-<h1>{{ t.tilbudsnr }} {{ st.merke(t.status) }}</h1>
-{% if lagret %}
-<div style="margin:0 0 1rem;padding:.7rem .9rem;background:#ecfdf5;border:1px solid #a7f3d0;
-            border-radius:8px;color:#065f46">
-  <strong>Lagret.</strong>
-  {% if lagret == "sendt" %}Word-dokumentet er sendt til {{ bruker.email }}.
-  {% else %}Ingen e-post er sendt - last ned dokumentet under.{% endif %}</div>
-{% endif %}
-<div class="kort">
-  <div class="rad rad-2">
-    <div><label>Kunde</label>
-      {{ t.kunde_firma or "—" }}<br>{{ t.kunde_kontakt }}<br>
-      {{ t.kunde_epost }}<br>{{ t.kunde_telefon }}</div>
-    <div><label>Selger</label>
-      {{ t.selger_navn or t.selger_epost }}<br>{{ t.selger_epost }}<br>{{ t.selger_telefon }}</div>
+<p class="tilbake"><a href="/">← Oversikt</a></p>
+<div class="sidetopp">
+  <div class="tittel"><h1>{{ t.tilbudsnr }}</h1>{{ st.merke(t.status) }}</div>
+  <div class="handlinger">
+    <a class="knapp" id="last-ned" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
+    <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/rediger">Rediger</a>
+    <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/kopier">Nytt tilbud basert på dette</a>
+    {% if kan_eksportere %}
+      <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/xlsx">Eksporter til Excel</a>
+    {% endif %}
   </div>
 </div>
-<div class="kort">
-  <table>
+{% if lagret %}
+<div class="melding">
+  <strong>Lagret.</strong>
+  {% if lagret == "sendt" %}Word-dokumentet er sendt til {{ bruker.email }}.
+  {% else %}Ingen e-post er sendt - last ned dokumentet over.{% endif %}</div>
+{% endif %}
+{% if t.status == "generert" %}
+{# Spørsmålet kommer når dokumentet lastes ned - det er da selgeren er i ferd med å sende det. #}
+<div id="sendt-sporsmal" class="info sporsmal" hidden>
+  <span><strong>Har du sendt tilbudet til kunden?</strong> Marker det, så stemmer oversikten.</span>
+  {{ st.knapp(t, "sendt", "Ja, marker som sendt", "", sekundaer=False) }}
+</div>
+<script>
+document.getElementById('last-ned').addEventListener('click', () => {
+  document.getElementById('sendt-sporsmal').hidden = false;
+});
+</script>
+{% endif %}
+<div class="kort fakta">
+  <div><p class="etikett">Kunde</p>
+    <strong>{{ t.kunde_firma or "—" }}</strong>
+    {% for v in (t.kunde_kontakt, t.kunde_epost, t.kunde_telefon) if v %}<br>{{ v }}{% endfor %}</div>
+  <div><p class="etikett">Selger</p>
+    <strong>{{ t.selger_navn or t.selger_epost }}</strong><br>{{ t.selger_epost }}
+    {% if t.selger_telefon %}<br>{{ t.selger_telefon }}{% endif %}</div>
+  <div><p class="etikett">Status</p>
+    {% if t.status == "generert" %}Ikke markert som sendt til kunden.
+    {% else %}Sendt {{ t.sendt_at.strftime("%d.%m.%Y") }}{% if t.avgjort_at %},
+      {{ t.status }} {{ t.avgjort_at.strftime("%d.%m.%Y") }}{% endif %}.
+    {% endif %}
+    <div class="status-knapper">{{ st.neste(t) }}</div></div>
+</div>
+<div class="rull">
+  <table class="linjetabell">
     <thead><tr><th>Varenr.</th><th>Beskrivelse</th><th class="tall">Antall</th>
       <th class="tall">Veil.</th><th class="tall">Din pris</th><th class="tall">Sum</th></tr></thead>
     <tbody>
     {% for l in t.linjer %}
       <tr>
-        <td>{{ l.sku }}</td>
+        <td class="ikke-bryt">{{ l.sku }}</td>
         <td>{{ l.navn }}
           {% if not l.produkt_id and not l.magento_id %}
             <span class="merkelapp m-generert">utenfor nettbutikken</span>
-            {% if l.kilde_url %}<br><a href="{{ l.kilde_url }}" target="_blank" rel="noopener noreferrer"
-               style="font-size:.85rem">Leverandørens side</a>{% endif %}
+            {% if l.kilde_url %}<a class="under" href="{{ l.kilde_url }}" target="_blank" rel="noopener noreferrer">Leverandørens side</a>{% endif %}
           {% endif %}
           {% if l.rabatt_type == "prosent" %}
-            <br><span style="color:#6b7280;font-size:.85rem">{{ l.rabatt_prosent|prosent }} % rabatt</span>
+            <span class="under">{{ l.rabatt_prosent|prosent }} % rabatt</span>
           {% elif l.rabatt_type == "fastpris" %}
-            <br><span style="color:#6b7280;font-size:.85rem">avtalt fastpris</span>
+            <span class="under">avtalt fastpris</span>
           {% endif %}</td>
         <td class="tall">{{ l.antall }}</td>
         <td class="tall">{{ l.listepris|kr }}</td>
@@ -47,43 +73,13 @@
     <tfoot>
       <tr><td colspan="5" class="tall">Sum eks. mva</td><td class="tall">{{ t.sum_eks_mva|kr }}</td></tr>
       <tr><td colspan="5" class="tall">Mva</td><td class="tall">{{ t.sum_mva|kr }}</td></tr>
-      <tr><td colspan="5" class="tall"><strong>Sum inkl. mva</strong></td>
-          <td class="tall"><strong>{{ t.sum_inkl_mva|kr }}</strong></td></tr>
+      <tr class="sum-rad"><td colspan="5" class="tall">Sum inkl. mva</td>
+          <td class="tall">{{ t.sum_inkl_mva|kr }}</td></tr>
     </tfoot>
   </table>
-  {% if t.notat %}<p style="margin-top:1rem"><label>Notat</label>{{ t.notat }}</p>{% endif %}
-  <p style="color:#6b7280;font-size:.85rem;margin-top:1rem">
-    Prisene over er frosset slik de var {{ t.created_at.strftime("%d.%m.%Y") }}. De endrer seg
-    ikke om katalogen endres.</p>
 </div>
-<div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-  <a class="knapp" id="last-ned" href="/tilbud/{{ t.id }}/dokument">Last ned Word-dokument</a>
-  <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/rediger">Rediger tilbudet</a>
-  <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/kopier">Nytt tilbud basert på dette</a>
-  {% if kan_eksportere %}
-    <a class="knapp sekundaer" href="/tilbud/{{ t.id }}/xlsx">Eksporter til Excel</a>
-  {% endif %}
-</div>
-<div class="kort" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-  <label style="margin:0">Status</label> {{ st.merke(t.status) }}
-  <span style="color:#6b7280;font-size:.9rem">
-    {% if t.status == "generert" %}Ikke markert som sendt til kunden.
-    {% else %}Sendt {{ t.sendt_at.strftime("%d.%m.%Y") }}{% if t.avgjort_at %},
-      {{ t.status }} {{ t.avgjort_at.strftime("%d.%m.%Y") }}{% endif %}.
-    {% endif %}</span>
-  <span style="margin-left:auto">{{ st.neste(t) }}</span>
-</div>
-{% if t.status == "generert" %}
-{# Spørsmålet kommer når dokumentet lastes ned - det er da selgeren er i ferd med å sende det. #}
-<div id="sendt-sporsmal" class="info" hidden style="gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem">
-  <span><strong>Har du sendt tilbudet til kunden?</strong> Marker det, så stemmer oversikten.</span>
-  {{ st.knapp(t, "sendt", "Ja, marker som sendt", "", sekundaer=False) }}
-</div>
-<script>
-document.getElementById('last-ned').addEventListener('click', () => {
-  const s = document.getElementById('sendt-sporsmal');
-  s.hidden = false; s.style.display = 'flex';
-});
-</script>
-{% endif %}
+{% if t.notat %}<div class="kort"><p class="etikett">Notat</p>{{ t.notat }}</div>{% endif %}
+<p class="hjelp">
+  Prisene over er frosset slik de var {{ t.created_at.strftime("%d.%m.%Y") }}. De endrer seg
+  ikke om katalogen endres.</p>
 {% endblock %}

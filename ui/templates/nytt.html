@@ -2,53 +2,51 @@
 {% block innhold %}
 {% set f = t or kilde %}
 {% if t %}
-<h1>Rediger {{ t.tilbudsnr }}</h1>
-<p style="color:#6b7280;margin-top:-.5rem">
+<p class="tilbake"><a href="/tilbud/{{ t.id }}">← {{ t.tilbudsnr }}</a></p>
+<div class="sidetopp"><h1>Rediger {{ t.tilbudsnr }}</h1></div>
+<p class="ingress">
   Varene som allerede står i tilbudet beholder prisene fra {{ t.created_at.strftime("%d.%m.%Y") }}.
   Varer du legger til nå, får dagens pris. Word-dokumentet lages på nytt når du lagrer.</p>
 {% if t.status == "sendt" %}
-<div style="font-size:.9rem;margin:0 0 1rem;padding:.6rem .75rem;background:#fff8db;
-            border-left:4px solid #ffcf0d;border-radius:4px;color:#111">
+<div class="varsel">
   <strong>Tilbudet er allerede markert som sendt.</strong> Kunden har den forrige versjonen.
   Husk å sende det oppdaterte dokumentet.</div>
 {% endif %}
 {% else %}
-<h1>Nytt tilbud</h1>
+<div class="sidetopp"><h1>Nytt tilbud</h1></div>
 {% if kilde %}
-<p style="color:#6b7280;margin-top:-.5rem">
-  Basert på <a href="/tilbud/{{ kilde.id }}" style="color:inherit">{{ kilde.tilbudsnr }}</a>.
+<p class="ingress">
+  Basert på <a href="/tilbud/{{ kilde.id }}">{{ kilde.tilbudsnr }}</a>.
   Varene har fått dagens pris; antall og rabatt er kopiert. {{ kilde.tilbudsnr }} endres ikke.</p>
 {% if borte %}
-<div style="font-size:.9rem;margin:0 0 1rem;padding:.6rem .75rem;background:#fff8db;
-            border-left:4px solid #ffcf0d;border-radius:4px;color:#111">
+<div class="varsel">
   <strong>Ikke lenger i nettbutikken, og derfor ikke med:</strong>
   {% for b in borte %}<br>{{ b }}{% endfor %}</div>
 {% endif %}
 {% endif %}
 {% endif %}
-<div id="feil" class="feil" style="display:none"></div>
+<div id="feil" class="feil" hidden></div>
 
 <div class="kort">
-  <label>Legg til vare</label>
+  <h2><label for="sok">Legg til vare</label></h2>
   <input id="sok" placeholder="Søk på varenummer eller navn — minst 2 tegn" autocomplete="off">
-  <div id="treff" style="margin-top:.5rem"></div>
+  <div id="treff"></div>
 
-  <details id="ekstern" style="margin-top:1rem;border-top:1px solid #eee;padding-top:.75rem">
-    <summary style="cursor:pointer;font-weight:600">Vare som ikke er i nettbutikken</summary>
-    <p style="color:#6b7280;font-size:.85rem;margin:.5rem 0">
+  <details id="ekstern" class="ekstern">
+    <summary>Vare som ikke er i nettbutikken</summary>
+    <p class="dempet liten-tekst">
       Lim inn lenken til produktsiden og trykk «Hent». Varenummer, navn og pris
       foreslås, og du retter dem før varen legges til. Du kan også fylle ut feltene
       selv.</p>
-    <div style="font-size:.85rem;margin:.5rem 0 .75rem;padding:.6rem .75rem;
-                background:#fff8db;border-left:4px solid #ffcf0d;border-radius:4px;color:#111">
+    <div class="varsel">
       <strong>Fungerer ikke for forhandler- og partnerportaler.</strong>
       Produkter fra sider der du må logge inn, f.eks. partnerportal.hultaforsgroup.no,
       kan ikke hentes. Fyll ut varenummer, navn og pris selv for disse.</div>
-    <div style="display:flex;gap:.5rem">
-      <input id="e-url" type="url" placeholder="https://…" style="flex:1">
+    <div class="felt-med-knapp">
+      <input id="e-url" type="url" placeholder="https://…" aria-label="Lenke til produktsiden">
       <button class="knapp sekundaer" id="e-hent" type="button">Hent</button>
     </div>
-    <div id="e-melding" style="font-size:.85rem;margin:.4rem 0;color:#6b7280"></div>
+    <p id="e-melding" class="dempet liten-tekst" aria-live="polite"></p>
     <div class="rad rad-2">
       <div><label for="e-sku">Varenummer</label><input id="e-sku" maxlength="64"></div>
       <div><label for="e-navn">Navn</label><input id="e-navn" maxlength="255"></div>
@@ -57,34 +55,32 @@
       <div><label for="e-pris">Pris</label>
         <input id="e-pris" inputmode="decimal" placeholder="0,00"></div>
       <div><label>Prisen er</label>
-        <label style="font-weight:400;color:#111;display:inline-flex;gap:.3rem;align-items:center;margin-right:1rem">
-          <input type="radio" name="e-mva" value="inkl" checked style="width:auto"> inkl. mva</label>
-        <label style="font-weight:400;color:#111;display:inline-flex;gap:.3rem;align-items:center">
-          <input type="radio" name="e-mva" value="eks" style="width:auto"> eks. mva</label></div>
+        <div class="valgrad">
+          <label class="valg"><input type="radio" name="e-mva" value="inkl" checked> inkl. mva</label>
+          <label class="valg"><input type="radio" name="e-mva" value="eks"> eks. mva</label>
+        </div></div>
     </div>
-    <div class="rad" style="display:flex;gap:.75rem;align-items:flex-end">
-      <div style="flex:1"><label for="e-bilde">Bilde-URL <span style="font-weight:400;color:#6b7280">(valgfritt)</span></label>
+    <div class="rad bilderad">
+      <div><label for="e-bilde">Bilde-URL <span class="dempet">(valgfritt)</span></label>
         <input id="e-bilde" type="url" placeholder="https://…/bilde.jpg"></div>
-      <img id="e-forhånd" alt="" hidden
-           style="width:56px;height:56px;object-fit:contain;flex:0 0 56px;background:#fff;
-                  border:1px solid #eee;border-radius:4px">
+      <img id="e-forhånd" class="vare-bilde" alt="" hidden>
     </div>
     <div class="rad">
       <div><label for="e-beskrivelse">Beskrivelse til produktdatabladet
-        <span style="font-weight:400;color:#6b7280">(valgfritt - uten beskrivelse lages det ikke datablad)</span></label>
+        <span class="dempet">(valgfritt - uten beskrivelse lages det ikke datablad)</span></label>
       <textarea id="e-beskrivelse" rows="4" maxlength="5000"></textarea></div>
     </div>
     <button class="knapp" id="e-legg" type="button">Legg til i tilbudet</button>
   </details>
 </div>
 
-<div class="kort">
-  <table id="linjer">
+<div class="rull">
+  <table id="linjer" class="linjetabell">
     <thead><tr>
-      <th>Vare</th><th class="tall" style="width:5.5rem">Antall</th>
-      <th class="tall" style="width:6.5rem">Veil. eks. mva</th>
-      <th style="width:15rem">Pris til kunde</th>
-      <th class="tall" style="width:8.5rem">Linjesum</th><th style="width:2rem"></th>
+      <th>Vare</th><th class="tall k-antall">Antall</th>
+      <th class="tall k-veil">Veil. eks. mva</th>
+      <th class="k-pris">Pris til kunde</th>
+      <th class="tall k-sum">Linjesum</th><th class="k-slett"></th>
     </tr></thead>
     <tbody id="kropp">
       <tr id="ingen"><td colspan="6" class="tom">Ingen varer lagt til ennå.</td></tr>
@@ -92,30 +88,26 @@
     <tfoot>
       <tr id="rad-veil" hidden><td colspan="4" class="tall">Sum før rabatt, eks. mva</td>
           <td class="tall"><span id="sum-veil">0,00</span>
-              <br><span id="sum-veil-inkl"
-              style="color:#6b7280;font-weight:400;font-size:.8rem"></span></td><td></td></tr>
+              <br><span id="sum-veil-inkl" class="graa"></span></td><td></td></tr>
       <tr id="rad-rabatt" hidden><td colspan="4" class="tall">
-            Rabatt <span id="rabatt-pst" style="color:#6b7280;font-weight:400"></span></td>
-          <td class="tall" style="color:#b91c1c"><span id="sum-rabatt">0,00</span>
-              <br><span id="sum-rabatt-inkl"
-              style="color:#6b7280;font-weight:400;font-size:.8rem"></span></td><td></td></tr>
-      <tr id="rad-kampanje" hidden><td colspan="4" class="tall"
-            style="font-weight:400;color:#6b7280;font-size:.85rem">herav fra pågående kampanje</td>
-          <td class="tall" id="sum-kampanje"
-            style="font-weight:400;color:#6b7280;font-size:.85rem">0,00</td><td></td></tr>
+            Rabatt <span id="rabatt-pst" class="dempet"></span></td>
+          <td class="tall rabatt-tall"><span id="sum-rabatt">0,00</span>
+              <br><span id="sum-rabatt-inkl" class="graa"></span></td><td></td></tr>
+      <tr id="rad-kampanje" hidden><td colspan="4" class="tall under-sum">herav fra pågående kampanje</td>
+          <td class="tall under-sum" id="sum-kampanje">0,00</td><td></td></tr>
       <tr><td colspan="4" class="tall">Sum eks. mva</td><td class="tall" id="sum-eks">0,00</td><td></td></tr>
       <tr><td colspan="4" class="tall">Mva</td><td class="tall" id="sum-mva">0,00</td><td></td></tr>
-      <tr><td colspan="4" class="tall"><strong>Sum inkl. mva</strong></td>
-          <td class="tall"><strong id="sum-inkl">0,00</strong></td><td></td></tr>
+      <tr class="sum-rad"><td colspan="4" class="tall">Sum inkl. mva</td>
+          <td class="tall" id="sum-inkl">0,00</td><td></td></tr>
     </tfoot>
   </table>
-  <p style="color:#6b7280;font-size:.85rem;margin:.75rem 0 0">
-    Summene her er et anslag for din egen del. Det er serveren som regner den
-    endelige prisen når tilbudet lagres.</p>
 </div>
+<p class="hjelp nedre">
+  Summene her er et anslag for din egen del. Det er serveren som regner den
+  endelige prisen når tilbudet lagres.</p>
 
 <div class="kort">
-  <label style="font-size:.95rem;color:#111;margin-bottom:.75rem">Kunde</label>
+  <h2>Kunde</h2>
   <div class="rad rad-2">
     <div><label for="kf">Firma</label><input id="kf" value="{{ f['kunde_firma'] if f else '' }}"></div>
     <div><label for="kk">Kontaktperson</label><input id="kk" value="{{ f['kunde_kontakt'] if f else '' }}"></div>
@@ -130,13 +122,13 @@
   </div>
 </div>
 
-<div class="kort">
+<p class="hjelp">
+  «Send til meg» sender Word-dokumentet til {{ bruker.email }}. «Lagre» lagrer uten e-post -
+  dokumentet kan lastes ned fra tilbudssiden.</p>
+<div class="lagrelinje">
   <button class="knapp" id="lagre-send">{{ "Lagre endringer og send til meg" if t else "Lag tilbud og send til meg" }}</button>
-  <button class="knapp sekundaer" id="lagre" style="margin-left:.5rem">Lagre</button>
-  {% if t %}<a class="knapp sekundaer" href="/tilbud/{{ t.id }}" style="margin-left:.5rem">Avbryt</a>{% endif %}
-  <p style="color:#6b7280;font-size:.85rem;margin:.6rem 0 0">
-    «Send til meg» sender Word-dokumentet til {{ bruker.email }}. «Lagre» lagrer uten e-post -
-    dokumentet kan lastes ned fra tilbudssiden.</p>
+  <button class="knapp sekundaer" id="lagre">Lagre</button>
+  {% if t %}<a class="knapp sekundaer" href="/tilbud/{{ t.id }}">Avbryt</a>{% endif %}
 </div>
 
 <script>
@@ -159,24 +151,21 @@ $('#sok').addEventListener('input', e => {
     const r = await fetch('/api/sok?q=' + encodeURIComponent(q));
     const data = await r.json();
     $('#treff').innerHTML = data.length ? data.map(p => `
-      <div style="display:flex;gap:.75rem;align-items:center;padding:.5rem;border-bottom:1px solid #eee">
+      <div class="treff-rad">
         ${p.bilde_url
-          ? `<img src="${esc(p.bilde_url)}" alt="" loading="lazy"
-                  style="width:44px;height:44px;object-fit:contain;flex:0 0 44px;
-                         background:#fff;border:1px solid #eee;border-radius:4px">`
-          : `<div style="width:44px;height:44px;flex:0 0 44px;border:1px solid #eee;
-                         border-radius:4px;background:#fafafa"></div>`}
-        <div style="flex:1;min-width:0">
+          ? `<img src="${esc(p.bilde_url)}" alt="" loading="lazy" class="vare-bilde">`
+          : `<div class="vare-bilde"></div>`}
+        <div class="treff-tekst">
           <strong>${esc(p.sku)}</strong> ${esc(p.navn)}
           ${p.prisvariasjon ? '<span class="merkelapp m-generert">varierende pris</span>' : ''}
         </div>
-        <div style="color:#6b7280;white-space:nowrap;text-align:right">
+        <div class="treff-pris">
           ${esc(p.kampanjepris_vis)} eks. mva<br>
-          <span style="font-size:.8rem">${nf.format(
+          <span>${nf.format(
             medMva(parseFloat(p.kampanjepris), parseFloat(p.mva_sats ?? 25)))} inkl.</span>
         </div>
-        <button class="knapp sekundaer" data-p='${JSON.stringify(p).replace(/'/g,"&#39;")}'>Legg til</button>
-      </div>`).join('') : '<p style="color:#6b7280">Ingen treff.</p>';
+        <button class="knapp sekundaer liten" data-p='${JSON.stringify(p).replace(/'/g,"&#39;")}'>Legg til</button>
+      </div>`).join('') : '<p class="dempet">Ingen treff.</p>';
     $('#treff').querySelectorAll('button').forEach(b =>
       b.onclick = () => { leggTil(JSON.parse(b.dataset.p)); $('#sok').value=''; $('#treff').innerHTML=''; });
   }, 250);
@@ -193,7 +182,7 @@ function leggTil(p) {
 const MVA_SATS = {{ mva_sats }};
 const eMelding = (tekst, feil) => {
   $('#e-melding').textContent = tekst;
-  $('#e-melding').style.color = feil ? '#b91c1c' : '#6b7280';
+  $('#e-melding').classList.toggle('feil-tekst', !!feil);
 };
 // Forhåndsvisning av bildet. Bare http(s) settes som src.
 function visBilde() {
@@ -313,8 +302,7 @@ function linjesumHtml(l) {
 }
 
 function graa(tekst) {
-  return `<span style="color:#6b7280;font-weight:400;font-size:.8rem;white-space:nowrap">`
-       + tekst + `</span>`;
+  return `<span class="graa">` + tekst + `</span>`;
 }
 
 function linjeNote(l, netto) {
@@ -343,45 +331,40 @@ function tegn() {
     const netto = nettopris(l);
     return `<tr>
       <td>
-        <div style="display:flex;gap:.6rem;align-items:flex-start">
-          ${l.bilde_url
-            ? `<img src="${esc(l.bilde_url)}" alt="" loading="lazy"
-                    style="width:40px;height:40px;object-fit:contain;flex:0 0 40px;
-                           background:#fff;border:1px solid #eee;border-radius:4px">`
-            : ''}
-          <div style="min-width:0">
-            <strong>${esc(l.sku)}</strong><br><span style="color:#6b7280">${esc(l.navn)}</span>
+        <div class="vare">
+          ${l.bilde_url ? `<img src="${esc(l.bilde_url)}" alt="" loading="lazy" class="vare-bilde">` : ''}
+          <div>
+            <strong>${esc(l.sku)}</strong><br><span class="dempet">${esc(l.navn)}</span>
             ${l.manuell ? '<br><span class="merkelapp m-generert">utenfor nettbutikken</span>' : ''}
           </div>
         </div>
       </td>
-      <td class="tall"><input type="number" min="1" value="${l.antall}" data-i="${i}" data-f="antall" style="text-align:right"></td>
+      <td class="tall"><input type="number" min="1" value="${l.antall}" data-i="${i}" data-f="antall" aria-label="Antall"></td>
       <td class="tall">${esc(l.listepris_vis)}<br>${graa(nf.format(linjetall(l).veilInkl) + ' inkl.')}</td>
-      <td>
-        <label style="font-weight:400;color:#111;display:flex;gap:.4rem;align-items:center;margin-bottom:.3rem">
+      <td class="prisvalg">
+        <label class="valg">
           <input type="radio" name="m${i}" value="prosent" data-i="${i}" data-f="modus"
-                 ${l.modus==='prosent'?'checked':''} style="width:auto">
-          <span style="white-space:nowrap">Rabatt</span>
+                 ${l.modus==='prosent'?'checked':''}>
+          <span>Rabatt</span>
           <input type="number" step="0.1" min="0" max="100" placeholder="10" value="${l.rabatt}"
-                 data-i="${i}" data-f="rabatt" ${l.modus!=='prosent'?'disabled':''} style="width:5rem">
+                 data-i="${i}" data-f="rabatt" ${l.modus!=='prosent'?'disabled':''}>
           <span>%</span>
         </label>
-        <label style="font-weight:400;color:#111;display:flex;gap:.4rem;align-items:center;margin-bottom:.3rem">
+        <label class="valg">
           <input type="radio" name="m${i}" value="fastpris" data-i="${i}" data-f="modus"
-                 ${l.modus==='fastpris'?'checked':''} style="width:auto">
-          <span style="white-space:nowrap">Fastpris</span>
+                 ${l.modus==='fastpris'?'checked':''}>
+          <span>Fastpris</span>
           <input type="number" step="0.01" min="0" placeholder="0,00" value="${l.fastpris}"
-                 data-i="${i}" data-f="fastpris" ${l.modus!=='fastpris'?'disabled':''} style="width:6rem">
+                 data-i="${i}" data-f="fastpris" ${l.modus!=='fastpris'?'disabled':''}>
         </label>
-        <label style="font-weight:400;color:#6b7280;display:flex;gap:.4rem;align-items:center">
+        <label class="valg">
           <input type="radio" name="m${i}" value="ingen" data-i="${i}" data-f="modus"
-                 ${l.modus==='ingen'?'checked':''} style="width:auto">
+                 ${l.modus==='ingen'?'checked':''}>
           <span>Ingen rabatt</span>
         </label>
       </td>
       <td class="tall" id="linjesum-${i}">${linjesumHtml(l)}</td>
-      <td><button class="knapp sekundaer" data-i="${i}" data-f="slett"
-                  style="padding:.2rem .55rem;border-width:1px">✕</button></td>
+      <td><button class="knapp sekundaer slett" data-i="${i}" data-f="slett" aria-label="Fjern linjen">✕</button></td>
     </tr>`;
   }).join('');
 
@@ -462,8 +445,8 @@ function oppdaterSummer() {
 
 // To knapper, samme lagring. send_epost avgjør om dokumentet også går til selgeren.
 async function lagre(knapp, send_epost) {
-  const f = $('#feil'); f.style.display = 'none';
-  if (!linjer.length) { f.textContent = 'Legg til minst én vare.'; f.style.display='block'; return; }
+  const f = $('#feil'); f.hidden = true;
+  if (!linjer.length) { f.textContent = 'Legg til minst én vare.'; f.hidden = false; return; }
   const knapper = [$('#lagre-send'), $('#lagre')], tekst = knapp.textContent;
   knapper.forEach(k => k.disabled = true); knapp.textContent = 'Lagrer tilbud …';
   const r = await fetch(LAGRE_URL, {
@@ -487,7 +470,7 @@ async function lagre(knapp, send_epost) {
   });
   const d = await r.json();
   if (!r.ok) {
-    f.textContent = d.feil || 'Noe gikk galt.'; f.style.display = 'block';
+    f.textContent = d.feil || 'Noe gikk galt.'; f.hidden = false;
     knapper.forEach(k => k.disabled = false); knapp.textContent = tekst;
     return;
   }

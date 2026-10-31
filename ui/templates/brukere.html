@@ -1,11 +1,11 @@
 {% extends "base.html" %}{% block tittel %}Brukere{% endblock %}
 {% block innhold %}
-<h1>Brukere</h1>
+<div class="sidetopp"><h1>Brukere</h1></div>
 {% if feil %}<div class="feil">{{ feil }}</div>{% endif %}
 {% if ok %}<div class="info">{{ ok }}</div>{% endif %}
 
 <div class="kort">
-  <label style="font-size:.95rem;color:#111;margin-bottom:.75rem">Legg til bruker</label>
+  <h2>Legg til bruker</h2>
   <form method="post" action="/brukere">
     <div class="rad rad-2">
       <div><label for="e">E-postadresse</label>
@@ -23,26 +23,26 @@
     </div>
     <button class="knapp" type="submit">Legg til</button>
   </form>
-  <p style="color:#6b7280;font-size:.85rem;margin:.9rem 0 0">
+  <p class="hjelp">
     Det sendes ingen invitasjon. Brukeren logger inn selv på
     <strong>tilbud.betterworkwear.no</strong> ved å be om en engangskode på e-post.
     Navn og telefon havner på tilbudsdokumentene de lager, så de er verdt å fylle ut.</p>
 </div>
 
-<div class="kort">
-  <table>
+<div class="rull">
+  <table class="brukertabell">
     <thead><tr>
       <th>E-post</th><th>Navn</th><th>Telefon</th><th>Rolle</th>
       <th class="tall">Tilbud</th><th>Aktiv</th><th></th>
     </tr></thead>
     <tbody>
     {% for u in brukere %}
-      <tr{% if not u.is_active %} style="opacity:.55"{% endif %}>
+      <tr{% if not u.is_active %} class="inaktiv"{% endif %}>
         <form method="post" action="/brukere/{{ u.id }}">
         <td>{{ u.email }}{% if u.id == bruker.id %}
-            <br><span style="color:#6b7280;font-size:.8rem">det er deg</span>{% endif %}</td>
-        <td><input name="navn" value="{{ u.navn }}" style="min-width:8rem"></td>
-        <td><input name="telefon" value="{{ u.telefon }}" style="min-width:7rem"></td>
+            <span class="under">det er deg</span>{% endif %}</td>
+        <td><input name="navn" value="{{ u.navn }}"></td>
+        <td><input name="telefon" value="{{ u.telefon }}"></td>
         <td><select name="rolle">
               {% for r in roller %}
                 <option value="{{ r }}"{% if u.rolle == r %} selected{% endif %}>{{ r }}</option>
@@ -53,16 +53,15 @@
               <option value="1"{% if u.is_active %} selected{% endif %}>ja</option>
               <option value="0"{% if not u.is_active %} selected{% endif %}>nei</option>
             </select></td>
-        <td><button class="knapp sekundaer" type="submit"
-                    style="padding:.35rem .8rem">Lagre</button></td>
+        <td><button class="knapp sekundaer" type="submit">Lagre</button></td>
         </form>
       </tr>
     {% endfor %}
     </tbody>
   </table>
-  <p style="color:#6b7280;font-size:.85rem;margin:1rem 0 0">
-    Brukere slettes ikke, de deaktiveres — ellers ville tilbudene deres mistet
-    avsenderen sin. En deaktivert bruker kommer ikke inn, men tilbudene består.
-    Den siste aktive administratoren kan ikke deaktiveres eller fratas rollen.</p>
 </div>
+<p class="hjelp">
+  Brukere slettes ikke, de deaktiveres — ellers ville tilbudene deres mistet
+  avsenderen sin. En deaktivert bruker kommer ikke inn, men tilbudene består.
+  Den siste aktive administratoren kan ikke deaktiveres eller fratas rollen.</p>
 {% endblock %}
