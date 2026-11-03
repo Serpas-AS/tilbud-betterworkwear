@@ -12,7 +12,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List
 
 from docx.shared import Mm
-from docxtpl import DocxTemplate, InlineImage
+from docxtpl import DocxTemplate, InlineImage, RichText
+from markupsafe import Markup
 
 from api import bilder, dataark, katalog
 
@@ -79,6 +80,28 @@ def _bilde(doc: DocxTemplate, l: Dict):
     return InlineImage(doc, sti, width=BILDEBREDDE)
 
 
+# Samme utseende som teksten rundt i Produkt-cella i malen.
+_NAVN_RPR = '<w:rPr><w:color w:val="12100C"/><w:sz w:val="19"/></w:rPr>'
+
+
+def _navn(doc: DocxTemplate, l: Dict, slug):
+    """
+    Produktnavnet, som lenke til produktsiden når vi har en (ønske fra
+    selgerne 03.11.2026: kunden skal kunne klikke seg inn og se farger og mer).
+
+    Malen har `{{ l.navn }}` midt i en vanlig tekstbit, ikke `{{r l.navn }}`.
+    Derfor lukker vi tekstbiten selv og åpner en ny etterpå, slik InlineImage
+    gjør - da trenger ikke malen endres, og gamle og nye maler virker likt.
+    Lenken er understreket i samme farge som teksten: profilen bruker ikke blått.
+    """
+    url = katalog.produktlenke(l, slug)
+    if not url:
+        return l["navn"]
+    rt = RichText(l["navn"], color="12100C", size=19, underline=True,
+                  url_id=doc.build_url_id(url))
+    return Markup(f'</w:t></w:r>{rt.xml}<w:r>{_NAVN_RPR}<w:t xml:space="preserve">')
+
+
 def _sparing(tilbud: Dict, linjer: List[Dict]) -> Dict:
     """
     «Du sparer»-linja i sumtabellen: veil. pris mot det kunden betaler, eks. mva.
@@ -106,6 +129,13 @@ def generer(tilbud: Dict, linjer: List[Dict], selger: Dict) -> str:
     dokumentet skal vise nøyaktig det som ble lagret da tilbudet ble laget.
     """
     doc = DocxTemplate(MAL)
+    try:
+        slugger = {pid: f.get("slug") for pid, f in katalog.eksportfakta(
+            [l["produkt_id"] for l in linjer if l.get("produkt_id")]).items()}
+    except Exception:
+        # Lenkene er et tillegg, som databladene. Tilbudet skal bli til uansett.
+        logging.exception("Klarte ikke slå opp produktlenker")
+        slugger = {}
     laget = tilbud.get("created_at") or date.today()
     laget_dato = laget.date() if hasattr(laget, "date") else laget
 
@@ -125,7 +155,7 @@ def generer(tilbud: Dict, linjer: List[Dict], selger: Dict) -> str:
         "linjer": [{
             "bilde": _bilde(doc, l),
             "sku": l["sku"],
-            "navn": l["navn"],
+            "navn": _navn(doc, l, slugger.get(l.get("produkt_id"))),
             "rabatt_tekst": _rabatt_tekst(l),
             "antall": str(l["antall"]),
             "listepris": kr(l["listepris"]),

@@ -31,6 +31,7 @@ blitt brent på hardkodet `/ 1.25` før (Serpas_CmsProductBox, PrebuiltCart).
 import os
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Optional
+from urllib.parse import quote
 
 from api.db import katalog_db
 
@@ -234,6 +235,22 @@ def eksportfakta(produkt_ids: List[int]) -> Dict[int, Dict]:
     finally:
         conn.close()
     return ut
+
+
+BUTIKK_URL = os.environ.get("BUTIKK_URL", "https://www.betterworkwear.no").rstrip("/")
+
+
+def produktlenke(linje: Dict, slug: Optional[str]) -> str:
+    """
+    Hvor kunden leser mer om varen: produktsiden i nettbutikken, eller
+    leverandørsiden for varer utenfor nettbutikken. Tom streng når vi ikke
+    har noen. Brukes av både Word-dokumentet og Excel-eksporten.
+
+    `kilde_url` er sjekket til http(s) da tilbudet ble lagret (tjeneste.py).
+    """
+    if slug:
+        return f"{BUTIKK_URL}/produkt/{quote(slug)}"
+    return linje.get("kilde_url") or ""
 
 
 def hent(produkt_id: int) -> Optional[Dict]:

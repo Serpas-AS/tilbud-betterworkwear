@@ -31,7 +31,6 @@ EKSPORT_TILGANG = {
     for e in os.environ.get("TILBUD_EKSPORT_EPOST", "morten@serpas.no").split(",")
     if e.strip()
 }
-BUTIKK_URL = os.environ.get("BUTIKK_URL", "https://www.betterworkwear.no").rstrip("/")
 
 KOLONNER = [  # (overskrift, bredde) - som i malen
     ("Produktnavn", 29.7), ("Produkt nr.", 10.8), ("Link til varen", 78.7),
@@ -75,10 +74,7 @@ def lag_xlsx(t: Dict) -> bytes:
         f = fakta.get(l.get("produkt_id")) or {}
         liste = Decimal(str(l["listepris"]))
         netto = Decimal(str(l["nettopris"]))
-        if f.get("slug"):
-            lenke = f"{BUTIKK_URL}/produkt/{f['slug']}"
-        else:
-            lenke = l.get("kilde_url") or ""
+        lenke = katalog.produktlenke(l, f.get("slug"))
         ark.append([
             l["navn"], l["sku"], lenke, l["antall"],
             float(liste), _rabatt(liste, netto), float(netto),
@@ -93,6 +89,10 @@ def lag_xlsx(t: Dict) -> bytes:
         for celle in ark[ark.max_row]:
             if isinstance(celle.value, str) and celle.value.startswith("="):
                 celle.data_type = "s"
+        if lenke:  # klikkbar, ikke bare tekst
+            celle = ark.cell(row=ark.max_row, column=3)
+            celle.hyperlink = lenke
+            celle.style = "Hyperlink"
 
     buf = io.BytesIO()
     wb.save(buf)
